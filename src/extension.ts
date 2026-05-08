@@ -8,6 +8,7 @@ import type {
   WebviewToHostMessage,
 } from "./types";
 
+/** Key under which the Deepgram API key is stored in `SecretStorage`. */
 const DEEPGRAM_SECRET_KEY = "headInput.deepgramApiKey";
 
 let statusBar: StatusBar | undefined;
@@ -15,6 +16,10 @@ let dictation: DeepgramClient | undefined;
 let extensionContext: vscode.ExtensionContext | undefined;
 let lastActiveEditor: vscode.TextEditor | undefined;
 
+/**
+ * Extension entry point. Registers commands, the status bar, and a
+ * configuration watcher. The panel itself is created on demand.
+ */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   extensionContext = context;
   statusBar = createStatusBar(context);
@@ -88,14 +93,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 }
 
+/** No-op deactivation hook — disposables are released via `context.subscriptions`. */
 export function deactivate(): void {
   // no-op
 }
 
+/** Subscribe the host to messages from the freshly-opened panel. */
 function wirePanel(_context: vscode.ExtensionContext, handle: PanelHandle): void {
   handle.onMessage((msg) => routeMessage(msg, handle));
 }
 
+/**
+ * Route a single webview message to the appropriate host action. See
+ * `docs/data-flow.md` for the full message taxonomy.
+ */
 function routeMessage(msg: WebviewToHostMessage, handle: PanelHandle): void {
   switch (msg.type) {
     case "ready":
@@ -132,6 +143,7 @@ function routeMessage(msg: WebviewToHostMessage, handle: PanelHandle): void {
   }
 }
 
+/** Snapshot the current `headInput.*` configuration into a `HeadInputConfig`. */
 function readConfig(): HeadInputConfig {
   const c = vscode.workspace.getConfiguration("headInput");
   return {
@@ -149,6 +161,11 @@ function readConfig(): HeadInputConfig {
   };
 }
 
+/**
+ * Open a Deepgram WebSocket for the current dictation session. Reads the API
+ * key from `SecretStorage` and prompts for it if missing. No-op if a session
+ * is already running.
+ */
 async function startDictation(handle: PanelHandle): Promise<void> {
   if (dictation) {
     return;
@@ -193,11 +210,16 @@ async function startDictation(handle: PanelHandle): Promise<void> {
   dictation.start();
 }
 
+/** Close the current Deepgram session, if any. Idempotent. */
 function stopDictation(): void {
   dictation?.stop();
   dictation = undefined;
 }
 
+/**
+ * Insert a final transcript at the active editor's caret. Adds a leading
+ * space if the preceding character isn't whitespace.
+ */
 async function insertTranscript(rawText: string): Promise<void> {
   const text = rawText.trim();
   if (!text) {
@@ -220,6 +242,10 @@ async function insertTranscript(rawText: string): Promise<void> {
   await editor.edit((b) => b.insert(pos, prefix + text));
 }
 
+/**
+ * Translate a single nudge into the corresponding VS Code command, honoring
+ * `verticalAction` (cursor vs. scroll) and `horizontalAction` (char vs. word).
+ */
 function runDirection(direction: Direction, config: HeadInputConfig): void {
   if (direction === "up" || direction === "down") {
     if (config.verticalAction === "scroll") {
