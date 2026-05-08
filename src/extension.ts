@@ -1,17 +1,28 @@
 import * as vscode from "vscode";
+import { createOrShowPanel, getPanel } from "./panel";
 
 const DEEPGRAM_SECRET_KEY = "headInput.deepgramApiKey";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   context.subscriptions.push(
     vscode.commands.registerCommand("headInput.openPanel", () => {
-      vscode.window.showInformationMessage("Head Input panel — coming next commit.");
+      createOrShowPanel(context);
     }),
     vscode.commands.registerCommand("headInput.calibrate", () => {
-      vscode.window.showInformationMessage("Head Input: calibration requested.");
+      const handle = getPanel();
+      if (!handle) {
+        vscode.window.showWarningMessage("Open the Head Input panel first.");
+        return;
+      }
+      handle.post({ type: "calibrate" });
     }),
     vscode.commands.registerCommand("headInput.toggle", () => {
-      vscode.window.showInformationMessage("Head Input: toggle requested.");
+      const handle = getPanel();
+      if (!handle) {
+        vscode.window.showWarningMessage("Open the Head Input panel first.");
+        return;
+      }
+      handle.post({ type: "toggle" });
     }),
     vscode.commands.registerCommand("headInput.setDeepgramKey", async () => {
       const key = await vscode.window.showInputBox({
