@@ -13,10 +13,19 @@ const DEEPGRAM_SECRET_KEY = "headInput.deepgramApiKey";
 let statusBar: StatusBar | undefined;
 let dictation: DeepgramClient | undefined;
 let extensionContext: vscode.ExtensionContext | undefined;
+let lastActiveEditor: vscode.TextEditor | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   extensionContext = context;
   statusBar = createStatusBar(context);
+  lastActiveEditor = vscode.window.activeTextEditor;
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        lastActiveEditor = editor;
+      }
+    }),
+  );
 
   const openPanel = () => {
     const handle = createOrShowPanel(context);
@@ -162,7 +171,9 @@ async function startDictation(handle: PanelHandle): Promise<void> {
     model: config.deepgramModel,
     onTranscript: (text, isFinal) => {
       handle.post({ type: "transcript-forward", text, isFinal });
-      // Insertion at cursor wired in the next commit.
+      if (isFinal) {
+        void insertTranscript(text);
+      }
     },
     onError: (err) => {
       vscode.window.showErrorMessage(`Deepgram: ${err.message}`);
@@ -177,6 +188,28 @@ async function startDictation(handle: PanelHandle): Promise<void> {
 function stopDictation(): void {
   dictation?.stop();
   dictation = undefined;
+}
+
+async function insertTranscript(rawText: string): Promise<void> {
+  const text = rawText.trim();
+  if (!text) {
+    return;
+  }
+  const editor = vscode.window.activeTextEditor ?? lastActiveEditor;
+  if (!editor) {
+    vscode.window.showWarningMessage("Head Input: no active editor to insert into.");
+    return;
+  }
+  const pos = editor.selection.active;
+  let prefix = "";
+  if (pos.character > 0) {
+    const lineText = editor.document.lineAt(pos.line).text;
+    const prev = lineText[pos.character - 1];
+    if (prev && !/\s/.test(prev)) {
+      prefix = " ";
+    }
+  }
+  await editor.edit((b) => b.insert(pos, prefix + text));
 }
 
 function runDirection(direction: Direction, config: HeadInputConfig): void {
