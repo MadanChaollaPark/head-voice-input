@@ -149,6 +149,67 @@
           "type": "boolean",
           "default": false,
           "description": "Open the input panel automatically when Cursor starts."
+        },
+        "headInput.whistleEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whistle to move the cursor: each of four pitch bands triggers one direction."
+        },
+        "headInput.whistleMinHz": {
+          "type": "number",
+          "default": 500,
+          "minimum": 80,
+          "maximum": 8000,
+          "description": "Lower bound of the whistle frequency range. Pitches below are ignored."
+        },
+        "headInput.whistleMaxHz": {
+          "type": "number",
+          "default": 4000,
+          "minimum": 200,
+          "maximum": 12000,
+          "description": "Upper bound of the whistle frequency range. Pitches above are ignored."
+        },
+        "headInput.whistleSplit1Hz": {
+          "type": "number",
+          "default": 800,
+          "minimum": 100,
+          "maximum": 6000,
+          "description": "Boundary between the down and left bands. Pitches below this fire 'down'."
+        },
+        "headInput.whistleSplit2Hz": {
+          "type": "number",
+          "default": 1400,
+          "minimum": 100,
+          "maximum": 6000,
+          "description": "Boundary between the left and right bands."
+        },
+        "headInput.whistleSplit3Hz": {
+          "type": "number",
+          "default": 2200,
+          "minimum": 100,
+          "maximum": 6000,
+          "description": "Boundary between the right and up bands. Pitches above this fire 'up'."
+        },
+        "headInput.whistleClarity": {
+          "type": "number",
+          "default": 0.85,
+          "minimum": 0.5,
+          "maximum": 0.99,
+          "description": "Minimum YIN clarity score (0..1) before a sample is treated as a whistle. Higher = stricter."
+        },
+        "headInput.whistleHoldMs": {
+          "type": "number",
+          "default": 200,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Milliseconds the whistle must hold one pitch band before firing."
+        },
+        "headInput.whistleRepeatRateHz": {
+          "type": "number",
+          "default": 3,
+          "minimum": 0.5,
+          "maximum": 15,
+          "description": "How often a sustained whistle in one band fires repeated nudges."
         }
       }
     }
