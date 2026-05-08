@@ -129,6 +129,9 @@ function routeMessage(msg: WebviewToHostMessage, handle: PanelHandle): void {
     case "dictation-end":
       stopDictation();
       return;
+    case "dab":
+      void vscode.commands.executeCommand("type", { text: "\n" });
+      return;
     case "transcript":
       // wired in a later commit (insert at cursor)
       return;
@@ -167,6 +170,9 @@ function readConfig(): HeadInputConfig {
     whistleClarity: c.get<number>("whistleClarity", 0.85),
     whistleHoldMs: c.get<number>("whistleHoldMs", 200),
     whistleRepeatRateHz: c.get<number>("whistleRepeatRateHz", 3),
+    dabEnabled: c.get<boolean>("dabEnabled", true),
+    dabHoldMs: c.get<number>("dabHoldMs", 250),
+    dabCooldownMs: c.get<number>("dabCooldownMs", 1200),
   };
 }
 
