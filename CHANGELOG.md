@@ -11,9 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Whistle-to-direction: YIN pitch detection on the existing mic stream maps four pitch bands to up / down / left / right with a configurable hold time and repeat rate.
 - Pitch readout in the panel's status grid showing detected Hz and the matched band.
 - `headInput.whistle*` configuration keys: enabled, min/max range, three split frequencies, clarity threshold, hold time, repeat rate.
+- Dab-to-newline: MediaPipe PoseLandmarker runs alongside the face tracker, and a geometric detector checks for the dab pose every other frame. Holding it for `dabHoldMs` inserts a newline at the caret.
+- `dab` indicator chip in the panel toolbar that lights up while a dab is being held.
+- `headInput.dab*` configuration keys: enabled, hold time, cooldown.
 
 ### Notes
 - Whistle detection is suppressed while dictation is active (smile gate on).
+- Dab detection runs at ~15 Hz (every other frame) on the GPU delegate to keep cost predictable.
 
 ## [0.0.1] - 2026-05-08
 

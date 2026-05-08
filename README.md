@@ -6,6 +6,7 @@ A Cursor / VS Code extension that lets you control the editor with your head, vo
 - **Smile and hold** to start dictating; speech is transcribed by Deepgram and inserted at the cursor.
 - **Stop smiling** to end dictation.
 - **Whistle** at one of four pitch bands to nudge the cursor up / down / left / right.
+- **Dab** to insert a newline (Enter) at the cursor.
 
 Everything runs locally except the speech-to-text streaming, which uses Deepgram.
 
@@ -51,6 +52,7 @@ The key is stored in Cursor's secret storage, not in `settings.json`.
 | Smile (held > `smileOnHoldMs`) | Start dictation                                  |
 | Stop smiling (held > `smileOffHoldMs`) | End dictation                            |
 | Whistle (held > `whistleHoldMs`) | Move cursor up / down / left / right depending on pitch |
+| Dab (held > `dabHoldMs`)      | Insert a newline (Enter) at the caret           |
 
 Calibration runs automatically when the panel opens. Hold a neutral pose for ~1 second. Recalibrate any time with `Head Input: Recalibrate Neutral Pose` or the panel button.
 
@@ -83,6 +85,9 @@ All settings live under `headInput.*` in `settings.json`.
 | `whistleClarity`              | `0.85`  | Minimum YIN clarity to accept a sample.                          |
 | `whistleHoldMs`               | `200`   | Hold duration before the first nudge fires.                      |
 | `whistleRepeatRateHz`         | `3`     | Repeat rate while a whistle is held in one band.                 |
+| `dabEnabled`                  | `true`  | Dab to insert a newline.                                         |
+| `dabHoldMs`                   | `250`   | Hold duration before the dab fires.                              |
+| `dabCooldownMs`               | `1200`  | After firing, ignore further detections for this long.           |
 
 ## Troubleshooting
 
@@ -109,6 +114,7 @@ Deeper guides live in [`docs/`](./docs):
 - [Settings](./docs/settings.md) — every `headInput.*` knob explained.
 - [Gestures](./docs/gestures.md) — calibration, tilt mapping, smile gate.
 - [Whistle to direction](./docs/whistle.md) — pitch detection, band layout, tuning.
+- [Dab to newline](./docs/dab.md) — body landmark geometry, hold time, cooldown.
 - [Deepgram integration](./docs/deepgram.md) — endpoint, params, costs, latency.
 - [Permissions](./docs/permissions.md) — camera/mic prompts and recovery.
 - [Troubleshooting](./docs/troubleshooting.md) — common issues.
@@ -135,6 +141,8 @@ src/
     audioAnalyser.ts AnalyserNode tap for pitch detection.
     pitch.ts        YIN pitch detector.
     whistle.ts      Pitch band -> direction controller.
+    bodyLandmarker.ts MediaPipe PoseLandmarker per-frame loop.
+    dab.ts          Geometric dab-pose detector with hold + cooldown.
     style.css       Panel styles.
     index.html      Reference only; HTML is built in panel.ts.
 esbuild.mjs         Bundles extension and webview, copies wasm assets.

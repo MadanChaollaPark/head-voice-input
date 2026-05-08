@@ -60,6 +60,16 @@ A summary, in case you don't follow the link:
 - Hold the whistle for `whistleHoldMs` before the first nudge fires; sustained whistles repeat at `whistleRepeatRateHz`.
 - Whistling while you're dictating (smile gate active) is intentionally a no-op — the audio path is reserved for Deepgram during dictation.
 
+## Dab -> newline
+
+A held dab pose inserts a newline (Enter) into the active editor. Either arm
+can be the extended one — the detector is mirror-symmetric. See [dab.md](./dab.md) for the geometry, hold time, and cooldown.
+
+Quick version:
+- Extended arm high and out, bent arm across the face, hold for `dabHoldMs` (default 250 ms).
+- After firing, a `dabCooldownMs` window (default 1200 ms) ignores re-detection so one dab equals one newline.
+- The blue chip in the panel toolbar goes solid while the dab is "armed" (held but not yet fired).
+
 ## Combined flow
 
 A typical "edit at line 50, then dictate a comment" flow:
