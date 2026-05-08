@@ -158,6 +158,15 @@ function readConfig(): HeadInputConfig {
     smileOffHoldMs: c.get<number>("smileOffHoldMs", 500),
     deepgramLanguage: c.get<string>("deepgramLanguage", "en-US"),
     deepgramModel: c.get<string>("deepgramModel", "nova-3"),
+    whistleEnabled: c.get<boolean>("whistleEnabled", true),
+    whistleMinHz: c.get<number>("whistleMinHz", 500),
+    whistleMaxHz: c.get<number>("whistleMaxHz", 4000),
+    whistleSplit1Hz: c.get<number>("whistleSplit1Hz", 800),
+    whistleSplit2Hz: c.get<number>("whistleSplit2Hz", 1400),
+    whistleSplit3Hz: c.get<number>("whistleSplit3Hz", 2200),
+    whistleClarity: c.get<number>("whistleClarity", 0.85),
+    whistleHoldMs: c.get<number>("whistleHoldMs", 200),
+    whistleRepeatRateHz: c.get<number>("whistleRepeatRateHz", 3),
   };
 }
 
