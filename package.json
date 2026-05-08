@@ -43,6 +43,19 @@
         "category": "Head Input"
       }
     ],
+    "keybindings": [
+      {
+        "command": "headInput.openPanel",
+        "key": "ctrl+shift+h",
+        "mac": "cmd+shift+h"
+      },
+      {
+        "command": "headInput.calibrate",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "headInput.panelOpen"
+      }
+    ],
     "configuration": {
       "title": "Head + Voice Input",
       "properties": {

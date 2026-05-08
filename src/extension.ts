@@ -31,7 +31,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const handle = createOrShowPanel(context);
     wirePanel(context, handle);
     statusBar?.setState("tracking");
-    handle.panel.onDidDispose(() => statusBar?.setState("off"));
+    void vscode.commands.executeCommand("setContext", "headInput.panelOpen", true);
+    handle.panel.onDidDispose(() => {
+      statusBar?.setState("off");
+      void vscode.commands.executeCommand("setContext", "headInput.panelOpen", false);
+    });
   };
 
   context.subscriptions.push(
@@ -152,17 +156,21 @@ async function startDictation(handle: PanelHandle): Promise<void> {
   if (!extensionContext) {
     return;
   }
-  const apiKey = await extensionContext.secrets.get(DEEPGRAM_SECRET_KEY);
+  let apiKey = await extensionContext.secrets.get(DEEPGRAM_SECRET_KEY);
   if (!apiKey) {
-    handle.post({
-      type: "config",
-      config: readConfig(),
-      deepgramKey: null,
-    });
-    vscode.window.showWarningMessage(
-      "Head Input: Deepgram key not set. Run \"Head Input: Set Deepgram API Key\".",
+    const choice = await vscode.window.showWarningMessage(
+      "Head Input: Deepgram key not set.",
+      "Set API Key",
+      "Cancel",
     );
-    return;
+    if (choice !== "Set API Key") {
+      return;
+    }
+    await vscode.commands.executeCommand("headInput.setDeepgramKey");
+    apiKey = await extensionContext.secrets.get(DEEPGRAM_SECRET_KEY);
+    if (!apiKey) {
+      return;
+    }
   }
   const config = readConfig();
   dictation = new DeepgramClient({
