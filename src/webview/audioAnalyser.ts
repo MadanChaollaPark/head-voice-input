@@ -27,7 +27,7 @@ export async function startAudioAnalyser(stream: MediaStream): Promise<AudioAnal
   source.connect(analyser);
 
   return {
-    read: (buf) => analyser.getFloatTimeDomainData(buf),
+    read: (buf) => analyser.getFloatTimeDomainData(buf as Float32Array<ArrayBuffer>),
     sampleRate: ctx.sampleRate,
     bufferSize: analyser.fftSize,
     stop: () => {
