@@ -1,14 +1,27 @@
 import { WebSocket } from "ws";
 
+/**
+ * Construction parameters for {@link DeepgramClient}. The host owns the API
+ * key — it never crosses into the webview.
+ */
 export interface DeepgramOptions {
   apiKey: string;
   language: string;
   model: string;
+  /** Fires for every transcript fragment. `isFinal` matches Deepgram's `is_final`. */
   onTranscript: (text: string, isFinal: boolean) => void;
+  /** Fires on socket or parse errors. */
   onError?: (err: Error) => void;
+  /** Fires once when the underlying WebSocket closes. */
   onClose?: (code: number, reason: string) => void;
 }
 
+/**
+ * Streaming Deepgram client. One instance corresponds to one dictation
+ * session: call `start()` to open the socket, `sendAudio()` for each chunk,
+ * `stop()` to flush and close. The class is designed to be swappable — see
+ * `docs/deepgram.md#switching-providers`.
+ */
 export class DeepgramClient {
   private ws: WebSocket | null = null;
   private buffered: ArrayBuffer[] = [];
@@ -17,6 +30,10 @@ export class DeepgramClient {
 
   constructor(private opts: DeepgramOptions) {}
 
+  /**
+   * Open the WebSocket. Audio sent before `OPEN` fires is buffered and
+   * replayed once the connection is established. No-op if already started.
+   */
   start(): void {
     if (this.ws) {
       return;
@@ -73,6 +90,10 @@ export class DeepgramClient {
     });
   }
 
+  /**
+   * Forward one audio chunk to Deepgram. Chunks arriving before the socket
+   * opens are buffered. After `stop()` the call is a silent no-op.
+   */
   sendAudio(buffer: ArrayBuffer): void {
     if (this.closed) {
       return;
@@ -84,6 +105,11 @@ export class DeepgramClient {
     this.ws.send(Buffer.from(buffer));
   }
 
+  /**
+   * Send Deepgram's `CloseStream` control message so it flushes a final
+   * transcript, then close the socket. Subsequent `sendAudio` calls become
+   * no-ops. Idempotent.
+   */
   stop(): void {
     if (!this.ws) {
       this.closed = true;
