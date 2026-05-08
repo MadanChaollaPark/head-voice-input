@@ -131,6 +131,9 @@ function renderHtml(webview: vscode.Webview, context: vscode.ExtensionContext): 
         <span class="label">Smile</span>
         <div id="smile-bar" class="bar smile"><div id="smile-fill" class="bar-fill"></div></div>
         <span id="smile-value" class="value">0%</span>
+        <span class="label">Whistle</span>
+        <div id="whistle-bar" class="bar whistle"><div id="whistle-fill" class="bar-fill"></div></div>
+        <span id="whistle-value" class="value">-</span>
       </div>
       <div class="toolbar">
         <button id="calibrate">Recalibrate</button>

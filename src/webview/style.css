@@ -84,6 +84,14 @@ body {
   background: #4ec9b0;
 }
 
+.bar.whistle .bar-fill {
+  background: #6a8eff;
+}
+
+.bar.whistle.active .bar-fill {
+  background: #4ec9b0;
+}
+
 .toolbar {
   display: flex;
   gap: 6px;
