@@ -137,4 +137,22 @@ export interface HeadInputConfig {
   deepgramLanguage: string;
   /** Deepgram model name (e.g. `nova-3`). */
   deepgramModel: string;
+  /** Whether whistle-to-direction is active. */
+  whistleEnabled: boolean;
+  /** Lower bound of the whistle frequency range (Hz). Pitches below are ignored. */
+  whistleMinHz: number;
+  /** Upper bound of the whistle frequency range (Hz). Pitches above are ignored. */
+  whistleMaxHz: number;
+  /** Boundary between the "down" and "left" bands (Hz). */
+  whistleSplit1Hz: number;
+  /** Boundary between the "left" and "right" bands (Hz). */
+  whistleSplit2Hz: number;
+  /** Boundary between the "right" and "up" bands (Hz). */
+  whistleSplit3Hz: number;
+  /** Minimum YIN clarity (0..1) before a sample is considered a whistle. */
+  whistleClarity: number;
+  /** How long a single band must be sustained before firing. */
+  whistleHoldMs: number;
+  /** Repeat rate (Hz) while a whistle is held in one band. */
+  whistleRepeatRateHz: number;
 }
