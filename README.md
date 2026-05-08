@@ -1,10 +1,11 @@
 # Head + Voice Input
 
-A Cursor / VS Code extension that lets you control the editor with your head and dictate text by smiling.
+A Cursor / VS Code extension that lets you control the editor with your head, voice, and whistle.
 
 - **Tilt your head** to move the text cursor (or scroll) in the active editor.
 - **Smile and hold** to start dictating; speech is transcribed by Deepgram and inserted at the cursor.
 - **Stop smiling** to end dictation.
+- **Whistle** at one of four pitch bands to nudge the cursor up / down / left / right.
 
 Everything runs locally except the speech-to-text streaming, which uses Deepgram.
 
@@ -49,6 +50,7 @@ The key is stored in Cursor's secret storage, not in `settings.json`.
 | Hold tilt                     | Repeat the move at `repeatRateHz`                |
 | Smile (held > `smileOnHoldMs`) | Start dictation                                  |
 | Stop smiling (held > `smileOffHoldMs`) | End dictation                            |
+| Whistle (held > `whistleHoldMs`) | Move cursor up / down / left / right depending on pitch |
 
 Calibration runs automatically when the panel opens. Hold a neutral pose for ~1 second. Recalibrate any time with `Head Input: Recalibrate Neutral Pose` or the panel button.
 
@@ -75,6 +77,12 @@ All settings live under `headInput.*` in `settings.json`.
 | `deepgramLanguage`            | `en-US` | Any Deepgram language code (e.g. `en-GB`, `multi`).              |
 | `deepgramModel`               | `nova-3`| Deepgram model name.                                             |
 | `autoOpenOnStartup`           | `false` | Open the panel when Cursor starts.                               |
+| `whistleEnabled`              | `true`  | Whistle to nudge the cursor.                                     |
+| `whistleMinHz` / `whistleMaxHz` | `500` / `4000` | Whistle frequency range; pitches outside are ignored.    |
+| `whistleSplit1Hz` / `Split2Hz` / `Split3Hz` | `800` / `1400` / `2200` | Boundaries between down/left/right/up bands.|
+| `whistleClarity`              | `0.85`  | Minimum YIN clarity to accept a sample.                          |
+| `whistleHoldMs`               | `200`   | Hold duration before the first nudge fires.                      |
+| `whistleRepeatRateHz`         | `3`     | Repeat rate while a whistle is held in one band.                 |
 
 ## Troubleshooting
 
@@ -100,6 +108,7 @@ Deeper guides live in [`docs/`](./docs):
 - [Development](./docs/development.md) — prerequisites, watch mode, debugging.
 - [Settings](./docs/settings.md) — every `headInput.*` knob explained.
 - [Gestures](./docs/gestures.md) — calibration, tilt mapping, smile gate.
+- [Whistle to direction](./docs/whistle.md) — pitch detection, band layout, tuning.
 - [Deepgram integration](./docs/deepgram.md) — endpoint, params, costs, latency.
 - [Permissions](./docs/permissions.md) — camera/mic prompts and recovery.
 - [Troubleshooting](./docs/troubleshooting.md) — common issues.
@@ -123,6 +132,9 @@ src/
     calibration.ts  1s neutral-pose averaging.
     nudge.ts        Pose-to-direction events (dead zone, repeat-on-hold).
     mic.ts          MediaRecorder audio capture.
+    audioAnalyser.ts AnalyserNode tap for pitch detection.
+    pitch.ts        YIN pitch detector.
+    whistle.ts      Pitch band -> direction controller.
     style.css       Panel styles.
     index.html      Reference only; HTML is built in panel.ts.
 esbuild.mjs         Bundles extension and webview, copies wasm assets.
