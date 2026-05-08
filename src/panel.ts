@@ -139,6 +139,7 @@ function renderHtml(webview: vscode.Webview, context: vscode.ExtensionContext): 
         <button id="calibrate">Recalibrate</button>
         <button id="toggle" class="secondary">Pause</button>
         <span id="dictation-pill" class="dictation-pill"><span class="dot"></span><span id="dictation-label">idle</span></span>
+        <span id="dab-pill" class="dab-pill"><span class="dot"></span><span>dab</span></span>
       </div>
       <div id="transcript" class="transcript"></div>
     </div>

@@ -157,6 +157,29 @@ button.secondary {
   opacity: 0.9;
 }
 
+.dab-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #444;
+  font-size: 11px;
+}
+
+.dab-pill.armed {
+  background: #6a8eff;
+  color: #fff;
+}
+
+.dab-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.9;
+}
+
 .transcript {
   min-height: 1.4em;
   font-style: italic;
