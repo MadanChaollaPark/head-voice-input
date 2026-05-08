@@ -18,6 +18,8 @@ import { MicRecorder } from "./mic";
 import { startAudioAnalyser, type AudioAnalyserHandle } from "./audioAnalyser";
 import { PitchDetector } from "./pitch";
 import { WhistleController } from "./whistle";
+import { startBodyTracker, type BodyTrackerHandle } from "./bodyLandmarker";
+import { DabDetector } from "./dab";
 
 declare const acquireVsCodeApi: () => {
   postMessage: (msg: WebviewToHostMessage) => void;
@@ -54,6 +56,9 @@ const defaultConfig: HeadInputConfig = {
   whistleClarity: 0.85,
   whistleHoldMs: 200,
   whistleRepeatRateHz: 3,
+  dabEnabled: true,
+  dabHoldMs: 250,
+  dabCooldownMs: 1200,
 };
 let config: HeadInputConfig = { ...defaultConfig };
 
@@ -74,10 +79,16 @@ const whistle = new WhistleController({
   holdMs: config.whistleHoldMs,
   repeatRateHz: config.whistleRepeatRateHz,
 });
+const dabDetector = new DabDetector({
+  holdMs: config.dabHoldMs,
+  cooldownMs: config.dabCooldownMs,
+  minVisibility: 0.5,
+});
 
 let audioAnalyser: AudioAnalyserHandle | undefined;
 let pitchDetector: PitchDetector | undefined;
 let pitchBuffer: Float32Array | undefined;
+let bodyTracker: BodyTrackerHandle | undefined;
 
 function send(msg: WebviewToHostMessage): void {
   vscode.postMessage(msg);
@@ -158,6 +169,12 @@ function sampleWhistle(ts: number, smileActive: boolean): PitchSnapshot | null {
   const pitch = pitchDetector.detect(pitchBuffer);
   const directions = whistle.update(pitch.hz, pitch.clarity, ts);
   return { hz: pitch.hz, clarity: pitch.clarity, directions, band: whistle.currentBand() };
+}
+
+function updateDabIndicator(armed: boolean): void {
+  const pill = document.getElementById("dab-pill");
+  if (!pill) return;
+  pill.classList.toggle("armed", armed);
 }
 
 function updateWhistleBar(info: PitchSnapshot | null): void {
@@ -274,6 +291,34 @@ async function init(): Promise<void> {
     return;
   }
 
+  try {
+    bodyTracker = await startBodyTracker({
+      video,
+      wasmRoot: window.__HEAD_INPUT__.wasmRoot,
+      onResult: (result, ts) => {
+        if (!config.dabEnabled || (tracker?.paused() ?? false)) {
+          dabDetector.reset();
+          updateDabIndicator(false);
+          return;
+        }
+        const landmarks = result.landmarks?.[0] ?? null;
+        const fired = dabDetector.update(landmarks, ts);
+        updateDabIndicator(dabDetector.arming());
+        if (fired) {
+          send({ type: "dab" });
+        }
+      },
+      onError: (err) => {
+        send({ type: "error", message: `Body tracker error: ${String(err)}` });
+      },
+    });
+  } catch (err) {
+    send({
+      type: "error",
+      message: `Dab disabled: ${err instanceof Error ? err.message : String(err)}`,
+    });
+  }
+
   setBanner("Tracking — hold a neutral pose for calibration...", "info");
   send({ type: "ready" });
   startCalibration("auto");
@@ -338,6 +383,11 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
         repeatRateHz: config.whistleRepeatRateHz,
       });
       pitchDetector?.setRange(config.whistleMinHz, config.whistleMaxHz);
+      dabDetector.setOptions({
+        holdMs: config.dabHoldMs,
+        cooldownMs: config.dabCooldownMs,
+        minVisibility: 0.5,
+      });
       break;
     case "calibrate":
       startCalibration("manual");
@@ -356,6 +406,7 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
 window.addEventListener("beforeunload", () => {
   mic?.stop();
   tracker?.stop();
+  bodyTracker?.stop();
   audioAnalyser?.stop();
   camera?.stop();
 });
