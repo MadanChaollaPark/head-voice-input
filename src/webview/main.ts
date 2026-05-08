@@ -8,6 +8,7 @@ import { startTracker, type TrackerHandle } from "./landmarker";
 import { PoseSmoother, poseFromResult, radToDeg, type HeadPose } from "./pose";
 import { SmileGate, smileFromResult } from "./smile";
 import { Calibrator } from "./calibration";
+import { NudgeController, configToNudgeOptions } from "./nudge";
 
 declare const acquireVsCodeApi: () => {
   postMessage: (msg: WebviewToHostMessage) => void;
@@ -44,6 +45,7 @@ const smileGate = new SmileGate({
   onHoldMs: config.smileOnHoldMs,
   offHoldMs: config.smileOffHoldMs,
 });
+const nudges = new NudgeController(configToNudgeOptions(config));
 
 function send(msg: WebviewToHostMessage): void {
   vscode.postMessage(msg);
@@ -134,6 +136,11 @@ async function init(): Promise<void> {
         if (gate.changed) {
           send({ type: "dictation", active: gate.active });
         }
+        if (calibrator.hasNeutral()) {
+          for (const direction of nudges.update(relative, ts)) {
+            send({ type: "nudge", direction });
+          }
+        }
         updateBars(relative, smile, gate.active);
         send({
           type: "pose",
@@ -162,6 +169,7 @@ function startCalibration(reason: "auto" | "manual"): void {
   if (reason === "manual") {
     smoother.reset();
     smileGate.reset();
+    nudges.reset();
   }
   setBanner("Calibrating — hold a neutral pose...", "info");
   calibrator.begin({
@@ -199,6 +207,7 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
         onHoldMs: config.smileOnHoldMs,
         offHoldMs: config.smileOffHoldMs,
       });
+      nudges.setOptions(configToNudgeOptions(config));
       break;
     case "calibrate":
       startCalibration("manual");
