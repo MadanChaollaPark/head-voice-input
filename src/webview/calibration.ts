@@ -1,7 +1,13 @@
 import type { HeadPose } from "./pose";
 
+/** Lifecycle of the {@link Calibrator}: not started, sampling, finished. */
 export type CalibrationState = "idle" | "collecting" | "ready";
 
+/**
+ * One-shot neutral-pose calibrator. Call `begin()` to start a sampling
+ * window, feed every frame's pose through `offer()`, then once the window
+ * closes, `apply()` returns the pose relative to the captured neutral.
+ */
 export class Calibrator {
   private neutral: HeadPose | null = null;
   private state: CalibrationState = "idle";
@@ -11,6 +17,11 @@ export class Calibrator {
   private onComplete: ((neutral: HeadPose) => void) | null = null;
   private onProgress: ((fraction: number) => void) | null = null;
 
+  /**
+   * Start a fresh calibration window. Defaults to 1000 ms; the calibrator
+   * collects pose samples until the window closes and at least five samples
+   * have arrived, then averages them to produce the neutral.
+   */
   begin(opts: {
     durationMs?: number;
     onComplete?: (neutral: HeadPose) => void;
@@ -39,6 +50,7 @@ export class Calibrator {
     return this.neutral !== null;
   }
 
+  /** Feed one pose sample. No-op outside the `collecting` state. */
   offer(pose: HeadPose, timestampMs: number): void {
     if (this.state !== "collecting") {
       return;
@@ -68,6 +80,7 @@ export class Calibrator {
     }
   }
 
+  /** Subtract the captured neutral from `pose`. Pass-through if no neutral yet. */
   apply(pose: HeadPose): HeadPose {
     if (!this.neutral) {
       return pose;
