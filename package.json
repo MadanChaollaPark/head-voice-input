@@ -210,6 +210,25 @@
           "minimum": 0.5,
           "maximum": 15,
           "description": "How often a sustained whistle in one band fires repeated nudges."
+        },
+        "headInput.dabEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Dab to insert a newline (Enter) into the active editor."
+        },
+        "headInput.dabHoldMs": {
+          "type": "number",
+          "default": 250,
+          "minimum": 0,
+          "maximum": 3000,
+          "description": "Milliseconds the dab pose must be held before firing."
+        },
+        "headInput.dabCooldownMs": {
+          "type": "number",
+          "default": 1200,
+          "minimum": 100,
+          "maximum": 10000,
+          "description": "After a dab fires, milliseconds before another dab is accepted."
         }
       }
     }
