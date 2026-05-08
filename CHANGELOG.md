@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Whistle-to-direction: YIN pitch detection on the existing mic stream maps four pitch bands to up / down / left / right with a configurable hold time and repeat rate.
+- Pitch readout in the panel's status grid showing detected Hz and the matched band.
+- `headInput.whistle*` configuration keys: enabled, min/max range, three split frequencies, clarity threshold, hold time, repeat rate.
+
+### Notes
+- Whistle detection is suppressed while dictation is active (smile gate on).
+
 ## [0.0.1] - 2026-05-08
 
 ### Added
