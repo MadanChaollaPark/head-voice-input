@@ -2,19 +2,32 @@ import * as vscode from "vscode";
 import { randomBytes } from "node:crypto";
 import type { HostToWebviewMessage, WebviewToHostMessage } from "./types";
 
+/**
+ * Wrapper around `vscode.WebviewPanel` exposing only the surface the host
+ * needs: a typed post helper, a typed message subscriber, and a disposer.
+ */
 export interface PanelHandle {
   panel: vscode.WebviewPanel;
+  /** Send a typed message to the webview. Fire-and-forget. */
   post: (msg: HostToWebviewMessage) => void;
+  /** Subscribe to typed messages from the webview. Returns a disposable. */
   onMessage: (handler: (msg: WebviewToHostMessage) => void) => vscode.Disposable;
+  /** Dispose the panel and its subscriptions. */
   dispose: () => void;
 }
 
 let current: PanelHandle | undefined;
 
+/** Returns the current `PanelHandle` if one is open, otherwise undefined. */
 export function getPanel(): PanelHandle | undefined {
   return current;
 }
 
+/**
+ * Reveal the existing panel or create a new one. The webview is loaded with a
+ * strict CSP and a per-load nonce; only assets under `dist/` are addressable
+ * via `webview.asWebviewUri`. Subsequent calls return the existing handle.
+ */
 export function createOrShowPanel(context: vscode.ExtensionContext): PanelHandle {
   if (current) {
     current.panel.reveal(vscode.ViewColumn.Beside, true);
@@ -64,6 +77,11 @@ export function createOrShowPanel(context: vscode.ExtensionContext): PanelHandle
   return handle;
 }
 
+/**
+ * Build the HTML payload for the webview. Injects a per-load nonce, asset URIs
+ * resolved through `webview.asWebviewUri`, and a CSP that allows MediaPipe's
+ * model fetch (`storage.googleapis.com`) plus Deepgram's WebSocket.
+ */
 function renderHtml(webview: vscode.Webview, context: vscode.ExtensionContext): string {
   const distUri = vscode.Uri.joinPath(context.extensionUri, "dist");
   const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(distUri, "webview.js"));
