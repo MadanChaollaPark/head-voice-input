@@ -9,6 +9,7 @@ import { PoseSmoother, poseFromResult, radToDeg, type HeadPose } from "./pose";
 import { SmileGate, smileFromResult } from "./smile";
 import { Calibrator } from "./calibration";
 import { NudgeController, configToNudgeOptions } from "./nudge";
+import { MicRecorder } from "./mic";
 
 declare const acquireVsCodeApi: () => {
   postMessage: (msg: WebviewToHostMessage) => void;
@@ -100,6 +101,7 @@ function setText(id: string, text: string): void {
 
 let camera: CameraHandle | undefined;
 let tracker: TrackerHandle | undefined;
+let mic: MicRecorder | undefined;
 
 async function init(): Promise<void> {
   const video = document.getElementById("video") as HTMLVideoElement | null;
@@ -118,6 +120,10 @@ async function init(): Promise<void> {
     return;
   }
 
+  mic = new MicRecorder(camera.stream, (chunk) => {
+    send({ type: "audio", data: chunk.data, mimeType: chunk.mimeType, first: chunk.first });
+  });
+
   setBanner("Loading face tracker...");
   try {
     tracker = await startTracker({
@@ -135,6 +141,16 @@ async function init(): Promise<void> {
         const gate = smileGate.update(smile, ts);
         if (gate.changed) {
           send({ type: "dictation", active: gate.active });
+          if (gate.active) {
+            try {
+              mic?.start();
+            } catch (err) {
+              send({ type: "error", message: `Mic error: ${String(err)}` });
+            }
+          } else {
+            mic?.stop();
+            send({ type: "dictation-end" });
+          }
         }
         if (calibrator.hasNeutral()) {
           for (const direction of nudges.update(relative, ts)) {
@@ -221,6 +237,7 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
 });
 
 window.addEventListener("beforeunload", () => {
+  mic?.stop();
   tracker?.stop();
   camera?.stop();
 });

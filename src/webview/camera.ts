@@ -11,7 +11,11 @@ export async function startCamera(video: HTMLVideoElement): Promise<CameraHandle
       height: { ideal: 480 },
       frameRate: { ideal: 30, max: 30 },
     },
-    audio: false,
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
   });
 
   video.srcObject = stream;

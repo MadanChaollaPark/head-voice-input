@@ -39,6 +39,17 @@ export interface ErrorMessage {
   message: string;
 }
 
+export interface AudioChunkMessage {
+  type: "audio";
+  data: ArrayBuffer;
+  mimeType: string;
+  first: boolean;
+}
+
+export interface DictationEndMessage {
+  type: "dictation-end";
+}
+
 export type WebviewToHostMessage =
   | NudgeMessage
   | DictationStateMessage
@@ -46,7 +57,9 @@ export type WebviewToHostMessage =
   | PoseDebugMessage
   | StatusMessage
   | ReadyMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | AudioChunkMessage
+  | DictationEndMessage;
 
 export interface ConfigMessage {
   type: "config";
