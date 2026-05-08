@@ -1,9 +1,20 @@
+/**
+ * One audio fragment from `MediaRecorder`. The `first: true` chunk includes
+ * the container header and must precede any subsequent chunk for Deepgram to
+ * parse the stream.
+ */
 export interface MicChunk {
   data: ArrayBuffer;
   mimeType: string;
   first: boolean;
 }
 
+/**
+ * Thin wrapper around `MediaRecorder` that picks a Deepgram-friendly mime
+ * type and converts each blob to an `ArrayBuffer` for `postMessage` transfer.
+ * Audio tracks are isolated from the source `MediaStream` so the video track
+ * isn't touched.
+ */
 export class MicRecorder {
   private recorder: MediaRecorder | null = null;
   private audioStream: MediaStream | null = null;
@@ -62,6 +73,11 @@ export class MicRecorder {
   }
 }
 
+/**
+ * Choose the most-preferred mime type the current `MediaRecorder` supports,
+ * walking from `audio/webm;codecs=opus` down to `audio/mp4`. Returns `null`
+ * if none match — the recorder will then use its implementation default.
+ */
 function pickMimeType(): string | null {
   const candidates = [
     "audio/webm;codecs=opus",
