@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { createOrShowPanel, getPanel, type PanelHandle } from "./panel";
 import { createStatusBar, type StatusBar } from "./statusBar";
+import { DeepgramClient } from "./deepgram";
 import type {
   Direction,
   HeadInputConfig,
@@ -10,8 +11,11 @@ import type {
 const DEEPGRAM_SECRET_KEY = "headInput.deepgramApiKey";
 
 let statusBar: StatusBar | undefined;
+let dictation: DeepgramClient | undefined;
+let extensionContext: vscode.ExtensionContext | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  extensionContext = context;
   statusBar = createStatusBar(context);
 
   const openPanel = () => {
@@ -89,6 +93,17 @@ function routeMessage(msg: WebviewToHostMessage, handle: PanelHandle): void {
       return;
     case "dictation":
       statusBar?.setState(msg.active ? "dictating" : "tracking");
+      if (msg.active) {
+        void startDictation(handle);
+      } else {
+        stopDictation();
+      }
+      return;
+    case "audio":
+      dictation?.sendAudio(msg.data);
+      return;
+    case "dictation-end":
+      stopDictation();
       return;
     case "transcript":
       // wired in a later commit (insert at cursor)
@@ -119,6 +134,49 @@ function readConfig(): HeadInputConfig {
     deepgramLanguage: c.get<string>("deepgramLanguage", "en-US"),
     deepgramModel: c.get<string>("deepgramModel", "nova-3"),
   };
+}
+
+async function startDictation(handle: PanelHandle): Promise<void> {
+  if (dictation) {
+    return;
+  }
+  if (!extensionContext) {
+    return;
+  }
+  const apiKey = await extensionContext.secrets.get(DEEPGRAM_SECRET_KEY);
+  if (!apiKey) {
+    handle.post({
+      type: "config",
+      config: readConfig(),
+      deepgramKey: null,
+    });
+    vscode.window.showWarningMessage(
+      "Head Input: Deepgram key not set. Run \"Head Input: Set Deepgram API Key\".",
+    );
+    return;
+  }
+  const config = readConfig();
+  dictation = new DeepgramClient({
+    apiKey,
+    language: config.deepgramLanguage,
+    model: config.deepgramModel,
+    onTranscript: (text, isFinal) => {
+      handle.post({ type: "transcript-forward", text, isFinal });
+      // Insertion at cursor wired in the next commit.
+    },
+    onError: (err) => {
+      vscode.window.showErrorMessage(`Deepgram: ${err.message}`);
+    },
+    onClose: (_code, _reason) => {
+      dictation = undefined;
+    },
+  });
+  dictation.start();
+}
+
+function stopDictation(): void {
+  dictation?.stop();
+  dictation = undefined;
 }
 
 function runDirection(direction: Direction, config: HeadInputConfig): void {

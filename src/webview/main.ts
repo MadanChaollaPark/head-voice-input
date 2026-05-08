@@ -233,6 +233,9 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
         tracker.setPaused(!tracker.paused());
       }
       break;
+    case "transcript-forward":
+      setText("transcript", msg.text + (msg.isFinal ? "" : "…"));
+      break;
   }
 });
 

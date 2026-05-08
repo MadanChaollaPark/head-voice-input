@@ -75,10 +75,17 @@ export interface ToggleRequestMessage {
   type: "toggle";
 }
 
+export interface TranscriptForwardMessage {
+  type: "transcript-forward";
+  text: string;
+  isFinal: boolean;
+}
+
 export type HostToWebviewMessage =
   | ConfigMessage
   | CalibrateRequestMessage
-  | ToggleRequestMessage;
+  | ToggleRequestMessage
+  | TranscriptForwardMessage;
 
 export interface HeadInputConfig {
   tiltSensitivity: number;
