@@ -65,6 +65,11 @@ export interface DictationEndMessage {
   type: "dictation-end";
 }
 
+/** Webview -> host: emitted on the frame a held dab pose fires. The host inserts a newline into the active editor. */
+export interface DabMessage {
+  type: "dab";
+}
+
 /** Discriminated union of all messages flowing from webview to host. */
 export type WebviewToHostMessage =
   | NudgeMessage
@@ -75,7 +80,8 @@ export type WebviewToHostMessage =
   | ReadyMessage
   | ErrorMessage
   | AudioChunkMessage
-  | DictationEndMessage;
+  | DictationEndMessage
+  | DabMessage;
 
 /** Host -> webview: pushes the current `HeadInputConfig`. `deepgramKey` is always null (the key never leaves the host). */
 export interface ConfigMessage {
@@ -155,4 +161,10 @@ export interface HeadInputConfig {
   whistleHoldMs: number;
   /** Repeat rate (Hz) while a whistle is held in one band. */
   whistleRepeatRateHz: number;
+  /** Whether dab-to-newline is active. */
+  dabEnabled: boolean;
+  /** How long the dab pose must be held (ms) before a newline fires. */
+  dabHoldMs: number;
+  /** After a dab fires, how long (ms) to ignore further detections. */
+  dabCooldownMs: number;
 }
