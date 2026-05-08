@@ -7,6 +7,7 @@ import { describeCameraError, startCamera, type CameraHandle } from "./camera";
 import { startTracker, type TrackerHandle } from "./landmarker";
 import { PoseSmoother, poseFromResult, radToDeg, type HeadPose } from "./pose";
 import { SmileGate, smileFromResult } from "./smile";
+import { Calibrator } from "./calibration";
 
 declare const acquireVsCodeApi: () => {
   postMessage: (msg: WebviewToHostMessage) => void;
@@ -20,6 +21,7 @@ declare global {
 
 const vscode = acquireVsCodeApi();
 const smoother = new PoseSmoother();
+const calibrator = new Calibrator();
 
 const defaultConfig: HeadInputConfig = {
   tiltSensitivity: 1.0,
@@ -125,16 +127,18 @@ async function init(): Promise<void> {
           return;
         }
         const smoothed = smoother.smooth(raw, ts);
+        calibrator.offer(smoothed, ts);
+        const relative = calibrator.apply(smoothed);
         const smile = smileFromResult(result);
         const gate = smileGate.update(smile, ts);
         if (gate.changed) {
           send({ type: "dictation", active: gate.active });
         }
-        updateBars(smoothed, smile, gate.active);
+        updateBars(relative, smile, gate.active);
         send({
           type: "pose",
-          yaw: smoothed.yaw,
-          pitch: smoothed.pitch,
+          yaw: relative.yaw,
+          pitch: relative.pitch,
           smile,
         });
       },
@@ -149,9 +153,40 @@ async function init(): Promise<void> {
     return;
   }
 
-  setBanner("Tracking. Smile to dictate (audio wired in later commits).", "success");
+  setBanner("Tracking — hold a neutral pose for calibration...", "info");
   send({ type: "ready" });
+  startCalibration("auto");
 }
+
+function startCalibration(reason: "auto" | "manual"): void {
+  if (reason === "manual") {
+    smoother.reset();
+    smileGate.reset();
+  }
+  setBanner("Calibrating — hold a neutral pose...", "info");
+  calibrator.begin({
+    durationMs: 1000,
+    onComplete: () => {
+      setBanner("Calibrated. Tilt your head to move the cursor.", "success");
+    },
+  });
+}
+
+function attachToolbar(): void {
+  const calibBtn = document.getElementById("calibrate");
+  calibBtn?.addEventListener("click", () => startCalibration("manual"));
+  const toggleBtn = document.getElementById("toggle");
+  toggleBtn?.addEventListener("click", () => {
+    if (!tracker) {
+      return;
+    }
+    const next = !tracker.paused();
+    tracker.setPaused(next);
+    toggleBtn.textContent = next ? "Resume" : "Pause";
+  });
+}
+
+attachToolbar();
 
 window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) => {
   const msg = event.data;
@@ -166,8 +201,7 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
       });
       break;
     case "calibrate":
-      smoother.reset();
-      smileGate.reset();
+      startCalibration("manual");
       break;
     case "toggle":
       if (tracker) {
