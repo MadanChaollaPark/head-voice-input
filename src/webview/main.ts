@@ -1,10 +1,12 @@
 import type {
+  HeadInputConfig,
   HostToWebviewMessage,
   WebviewToHostMessage,
 } from "../types";
 import { describeCameraError, startCamera, type CameraHandle } from "./camera";
 import { startTracker, type TrackerHandle } from "./landmarker";
 import { PoseSmoother, poseFromResult, radToDeg, type HeadPose } from "./pose";
+import { SmileGate, smileFromResult } from "./smile";
 
 declare const acquireVsCodeApi: () => {
   postMessage: (msg: WebviewToHostMessage) => void;
@@ -19,6 +21,28 @@ declare global {
 const vscode = acquireVsCodeApi();
 const smoother = new PoseSmoother();
 
+const defaultConfig: HeadInputConfig = {
+  tiltSensitivity: 1.0,
+  deadZoneDegrees: 8,
+  repeatRateHz: 4,
+  verticalAction: "cursor",
+  horizontalAction: "cursor",
+  smileOnThreshold: 0.5,
+  smileOffThreshold: 0.3,
+  smileOnHoldMs: 200,
+  smileOffHoldMs: 500,
+  deepgramLanguage: "en-US",
+  deepgramModel: "nova-3",
+};
+let config: HeadInputConfig = { ...defaultConfig };
+
+const smileGate = new SmileGate({
+  onThreshold: config.smileOnThreshold,
+  offThreshold: config.smileOffThreshold,
+  onHoldMs: config.smileOnHoldMs,
+  offHoldMs: config.smileOffHoldMs,
+});
+
 function send(msg: WebviewToHostMessage): void {
   vscode.postMessage(msg);
 }
@@ -32,13 +56,25 @@ function setBanner(text: string, kind: "info" | "error" | "success" = "info"): v
   el.className = `banner${kind === "info" ? "" : ` ${kind}`}`;
 }
 
-function updateBars(pose: HeadPose): void {
+function updateBars(pose: HeadPose, smile: number, smileActive: boolean): void {
   const yawDeg = radToDeg(pose.yaw);
   const pitchDeg = radToDeg(pose.pitch);
   setBar("yaw", yawDeg, 30);
   setBar("pitch", pitchDeg, 25);
   setText("yaw-value", `${yawDeg.toFixed(0)}°`);
   setText("pitch-value", `${pitchDeg.toFixed(0)}°`);
+
+  const smileFill = document.getElementById("smile-fill") as HTMLDivElement | null;
+  if (smileFill) {
+    smileFill.style.width = `${Math.round(smile * 100)}%`;
+  }
+  const smileBar = document.getElementById("smile-bar");
+  smileBar?.classList.toggle("active", smileActive);
+  setText("smile-value", `${Math.round(smile * 100)}%`);
+
+  const pill = document.getElementById("dictation-pill");
+  pill?.classList.toggle("on", smileActive);
+  setText("dictation-label", smileActive ? "dictating" : "idle");
 }
 
 function setBar(prefix: string, value: number, range: number): void {
@@ -46,7 +82,6 @@ function setBar(prefix: string, value: number, range: number): void {
   if (!fill) {
     return;
   }
-  // Map [-range, +range] to [0%, 100%], with center at 50%.
   const clamped = Math.max(-range, Math.min(range, value));
   const pct = ((clamped + range) / (2 * range)) * 100;
   fill.style.width = `${pct}%`;
@@ -90,8 +125,18 @@ async function init(): Promise<void> {
           return;
         }
         const smoothed = smoother.smooth(raw, ts);
-        updateBars(smoothed);
-        send({ type: "pose", yaw: smoothed.yaw, pitch: smoothed.pitch, smile: 0 });
+        const smile = smileFromResult(result);
+        const gate = smileGate.update(smile, ts);
+        if (gate.changed) {
+          send({ type: "dictation", active: gate.active });
+        }
+        updateBars(smoothed, smile, gate.active);
+        send({
+          type: "pose",
+          yaw: smoothed.yaw,
+          pitch: smoothed.pitch,
+          smile,
+        });
       },
       onError: (err) => {
         send({ type: "error", message: `Tracker error: ${String(err)}` });
@@ -104,7 +149,7 @@ async function init(): Promise<void> {
     return;
   }
 
-  setBanner("Tracking. Tilt your head to test the bars.", "success");
+  setBanner("Tracking. Smile to dictate (audio wired in later commits).", "success");
   send({ type: "ready" });
 }
 
@@ -112,9 +157,17 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
   const msg = event.data;
   switch (msg.type) {
     case "config":
+      config = msg.config;
+      smileGate.setOptions({
+        onThreshold: config.smileOnThreshold,
+        offThreshold: config.smileOffThreshold,
+        onHoldMs: config.smileOnHoldMs,
+        offHoldMs: config.smileOffHoldMs,
+      });
       break;
     case "calibrate":
       smoother.reset();
+      smileGate.reset();
       break;
     case "toggle":
       if (tracker) {
