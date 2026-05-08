@@ -15,6 +15,9 @@ import { SmileGate, smileFromResult } from "./smile";
 import { Calibrator } from "./calibration";
 import { NudgeController, configToNudgeOptions } from "./nudge";
 import { MicRecorder } from "./mic";
+import { startAudioAnalyser, type AudioAnalyserHandle } from "./audioAnalyser";
+import { PitchDetector } from "./pitch";
+import { WhistleController } from "./whistle";
 
 declare const acquireVsCodeApi: () => {
   postMessage: (msg: WebviewToHostMessage) => void;
@@ -42,6 +45,15 @@ const defaultConfig: HeadInputConfig = {
   smileOffHoldMs: 500,
   deepgramLanguage: "en-US",
   deepgramModel: "nova-3",
+  whistleEnabled: true,
+  whistleMinHz: 500,
+  whistleMaxHz: 4000,
+  whistleSplit1Hz: 800,
+  whistleSplit2Hz: 1400,
+  whistleSplit3Hz: 2200,
+  whistleClarity: 0.85,
+  whistleHoldMs: 200,
+  whistleRepeatRateHz: 3,
 };
 let config: HeadInputConfig = { ...defaultConfig };
 
@@ -52,6 +64,20 @@ const smileGate = new SmileGate({
   offHoldMs: config.smileOffHoldMs,
 });
 const nudges = new NudgeController(configToNudgeOptions(config));
+const whistle = new WhistleController({
+  split1Hz: config.whistleSplit1Hz,
+  split2Hz: config.whistleSplit2Hz,
+  split3Hz: config.whistleSplit3Hz,
+  minHz: config.whistleMinHz,
+  maxHz: config.whistleMaxHz,
+  minClarity: config.whistleClarity,
+  holdMs: config.whistleHoldMs,
+  repeatRateHz: config.whistleRepeatRateHz,
+});
+
+let audioAnalyser: AudioAnalyserHandle | undefined;
+let pitchDetector: PitchDetector | undefined;
+let pitchBuffer: Float32Array | undefined;
 
 function send(msg: WebviewToHostMessage): void {
   vscode.postMessage(msg);
@@ -108,6 +134,52 @@ let camera: CameraHandle | undefined;
 let tracker: TrackerHandle | undefined;
 let mic: MicRecorder | undefined;
 
+interface PitchSnapshot {
+  hz: number | null;
+  clarity: number;
+  directions: ReturnType<WhistleController["update"]>;
+  band: ReturnType<WhistleController["currentBand"]>;
+}
+
+/**
+ * Read one buffer from the audio analyser, run YIN, feed the result through
+ * the whistle controller. Returns null when the analyser isn't ready or
+ * whistle is disabled. Resets the controller when paused or while dictating.
+ */
+function sampleWhistle(ts: number, smileActive: boolean): PitchSnapshot | null {
+  if (!audioAnalyser || !pitchDetector || !pitchBuffer) {
+    return null;
+  }
+  if (!config.whistleEnabled || smileActive || (tracker?.paused() ?? false)) {
+    whistle.reset();
+    return { hz: null, clarity: 0, directions: [], band: null };
+  }
+  audioAnalyser.read(pitchBuffer);
+  const pitch = pitchDetector.detect(pitchBuffer);
+  const directions = whistle.update(pitch.hz, pitch.clarity, ts);
+  return { hz: pitch.hz, clarity: pitch.clarity, directions, band: whistle.currentBand() };
+}
+
+function updateWhistleBar(info: PitchSnapshot | null): void {
+  const fill = document.getElementById("whistle-fill") as HTMLDivElement | null;
+  const valueEl = document.getElementById("whistle-value");
+  const bar = document.getElementById("whistle-bar");
+  if (!info || info.hz === null) {
+    if (fill) fill.style.width = "0%";
+    if (valueEl) valueEl.textContent = "-";
+    bar?.classList.remove("active");
+    return;
+  }
+  const range = config.whistleMaxHz - config.whistleMinHz;
+  const pct = Math.max(0, Math.min(100, ((info.hz - config.whistleMinHz) / Math.max(range, 1)) * 100));
+  if (fill) fill.style.width = `${pct.toFixed(0)}%`;
+  if (valueEl) {
+    const hzLabel = info.hz >= 1000 ? `${(info.hz / 1000).toFixed(2)} kHz` : `${info.hz.toFixed(0)} Hz`;
+    valueEl.textContent = info.band ? `${hzLabel} ▸ ${info.band}` : hzLabel;
+  }
+  bar?.classList.toggle("active", info.band !== null);
+}
+
 /**
  * Boot sequence: open the camera, attach mic recorder, load FaceLandmarker,
  * start the per-frame loop, then auto-calibrate. Errors at any step send an
@@ -133,6 +205,14 @@ async function init(): Promise<void> {
   mic = new MicRecorder(camera.stream, (chunk) => {
     send({ type: "audio", data: chunk.data, mimeType: chunk.mimeType, first: chunk.first });
   });
+
+  try {
+    audioAnalyser = await startAudioAnalyser(camera.stream);
+    pitchDetector = new PitchDetector(audioAnalyser.sampleRate, config.whistleMinHz, config.whistleMaxHz);
+    pitchBuffer = new Float32Array(audioAnalyser.bufferSize);
+  } catch (err) {
+    send({ type: "error", message: `Whistle disabled: ${err instanceof Error ? err.message : String(err)}` });
+  }
 
   setBanner("Loading face tracker...");
   try {
@@ -167,7 +247,15 @@ async function init(): Promise<void> {
             send({ type: "nudge", direction });
           }
         }
+
+        const pitchInfo = sampleWhistle(ts, gate.active);
+        if (calibrator.hasNeutral() && pitchInfo) {
+          for (const direction of pitchInfo.directions) {
+            send({ type: "nudge", direction });
+          }
+        }
         updateBars(relative, smile, gate.active);
+        updateWhistleBar(pitchInfo);
         send({
           type: "pose",
           yaw: relative.yaw,
@@ -200,6 +288,7 @@ function startCalibration(reason: "auto" | "manual"): void {
     smoother.reset();
     smileGate.reset();
     nudges.reset();
+    whistle.reset();
   }
   setBanner("Calibrating — hold a neutral pose...", "info");
   calibrator.begin({
@@ -238,6 +327,17 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
         offHoldMs: config.smileOffHoldMs,
       });
       nudges.setOptions(configToNudgeOptions(config));
+      whistle.setOptions({
+        split1Hz: config.whistleSplit1Hz,
+        split2Hz: config.whistleSplit2Hz,
+        split3Hz: config.whistleSplit3Hz,
+        minHz: config.whistleMinHz,
+        maxHz: config.whistleMaxHz,
+        minClarity: config.whistleClarity,
+        holdMs: config.whistleHoldMs,
+        repeatRateHz: config.whistleRepeatRateHz,
+      });
+      pitchDetector?.setRange(config.whistleMinHz, config.whistleMaxHz);
       break;
     case "calibrate":
       startCalibration("manual");
@@ -256,6 +356,7 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
 window.addEventListener("beforeunload", () => {
   mic?.stop();
   tracker?.stop();
+  audioAnalyser?.stop();
   camera?.stop();
 });
 
