@@ -51,6 +51,15 @@ Tips for clean dictation:
 - If false-positive dictation kicks in while you talk to someone, raise `smileOnThreshold` and / or `smileOnHoldMs`.
 - If you can't reliably enter dictation, lower `smileOnThreshold` (try `0.4`) or `smileOnHoldMs` (try `100`).
 
+## Whistle -> cursor
+
+A separate, audio-driven path lets you nudge the cursor by whistling at a sustained pitch. Four pitch bands map to the four directions; see [whistle.md](./whistle.md) for the full layout, defaults, and tuning advice.
+
+A summary, in case you don't follow the link:
+- Low whistle → down. High whistle → up. The two middle bands → left and right.
+- Hold the whistle for `whistleHoldMs` before the first nudge fires; sustained whistles repeat at `whistleRepeatRateHz`.
+- Whistling while you're dictating (smile gate active) is intentionally a no-op — the audio path is reserved for Deepgram during dictation.
+
 ## Combined flow
 
 A typical "edit at line 50, then dictate a comment" flow:
