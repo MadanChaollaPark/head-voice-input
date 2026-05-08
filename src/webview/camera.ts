@@ -1,9 +1,15 @@
+/** Open camera + microphone resources. `stop()` releases both tracks. */
 export interface CameraHandle {
   stream: MediaStream;
   video: HTMLVideoElement;
   stop: () => void;
 }
 
+/**
+ * Request camera + microphone permission, attach the video track to the given
+ * `<video>` element, and return a handle for later cleanup. Resolves once the
+ * video element has metadata and is playing.
+ */
 export async function startCamera(video: HTMLVideoElement): Promise<CameraHandle> {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
@@ -47,6 +53,10 @@ export async function startCamera(video: HTMLVideoElement): Promise<CameraHandle
   };
 }
 
+/**
+ * Map a `getUserMedia` error to a human-readable string suitable for an
+ * error toast. Falls back to the underlying message for non-DOMException errors.
+ */
 export function describeCameraError(err: unknown): string {
   if (err instanceof DOMException) {
     switch (err.name) {
