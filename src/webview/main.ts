@@ -1,3 +1,8 @@
+/**
+ * Webview entry point. Wires the camera, FaceLandmarker, smile gate, nudge
+ * controller, and microphone recorder together; talks to the host over
+ * `postMessage`. See `docs/architecture.md` for the high-level diagram.
+ */
 import type {
   HeadInputConfig,
   HostToWebviewMessage,
@@ -103,6 +108,11 @@ let camera: CameraHandle | undefined;
 let tracker: TrackerHandle | undefined;
 let mic: MicRecorder | undefined;
 
+/**
+ * Boot sequence: open the camera, attach mic recorder, load FaceLandmarker,
+ * start the per-frame loop, then auto-calibrate. Errors at any step send an
+ * `error` message and abort.
+ */
 async function init(): Promise<void> {
   const video = document.getElementById("video") as HTMLVideoElement | null;
   if (!video) {
@@ -181,6 +191,10 @@ async function init(): Promise<void> {
   startCalibration("auto");
 }
 
+/**
+ * Begin a fresh neutral-pose calibration window. `manual` resets all
+ * downstream state (smoother, smile gate, nudges); `auto` doesn't.
+ */
 function startCalibration(reason: "auto" | "manual"): void {
   if (reason === "manual") {
     smoother.reset();
