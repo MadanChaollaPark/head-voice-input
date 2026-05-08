@@ -1,11 +1,20 @@
 import type { FaceLandmarkerResult } from "@mediapipe/tasks-vision";
 
+/** Head orientation in camera space, all values in radians. */
 export interface HeadPose {
   yaw: number;
   pitch: number;
   roll: number;
 }
 
+/**
+ * Extract head pose from a Face Landmarker result. The transformation matrix
+ * is column-major; column 2 is the head's forward vector. Returns null when
+ * the result is empty (no face detected).
+ *
+ * Sign convention assumed: +yaw = looking right, +pitch = looking up. If the
+ * directions feel inverted on your camera, flip the sign in `nudge.ts`.
+ */
 export function poseFromResult(result: FaceLandmarkerResult): HeadPose | null {
   const matrix = result.facialTransformationMatrixes?.[0];
   if (!matrix || !matrix.data || matrix.data.length < 16) {
@@ -27,7 +36,12 @@ export function poseFromResult(result: FaceLandmarkerResult): HeadPose | null {
   return { yaw, pitch, roll };
 }
 
-// One-Euro filter (Casiez et al. 2012). Cheap, smooth, low-lag.
+/**
+ * One-Euro filter (Casiez et al. 2012): a low-pass filter whose cutoff
+ * adapts to signal speed. Slow motion is heavily smoothed (low cutoff),
+ * fast motion is barely smoothed (high cutoff), which preserves intent
+ * while killing tracker jitter at rest.
+ */
 export class OneEuroFilter {
   private prev: number | null = null;
   private prevDeriv = 0;
@@ -69,6 +83,7 @@ function alpha(cutoffHz: number, dt: number): number {
   return 1 / (1 + tau / dt);
 }
 
+/** Three-axis wrapper around {@link OneEuroFilter}. Resetting clears all axes. */
 export class PoseSmoother {
   private yawFilter = new OneEuroFilter(1.5, 0.05);
   private pitchFilter = new OneEuroFilter(1.5, 0.05);
@@ -89,6 +104,7 @@ export class PoseSmoother {
   }
 }
 
+/** Radians -> degrees. */
 export function radToDeg(r: number): number {
   return (r * 180) / Math.PI;
 }
