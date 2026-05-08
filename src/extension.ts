@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { createOrShowPanel, getPanel, type PanelHandle } from "./panel";
+import { createStatusBar, type StatusBar } from "./statusBar";
 import type {
   Direction,
   HeadInputConfig,
@@ -8,10 +9,16 @@ import type {
 
 const DEEPGRAM_SECRET_KEY = "headInput.deepgramApiKey";
 
+let statusBar: StatusBar | undefined;
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  statusBar = createStatusBar(context);
+
   const openPanel = () => {
     const handle = createOrShowPanel(context);
     wirePanel(context, handle);
+    statusBar?.setState("tracking");
+    handle.panel.onDidDispose(() => statusBar?.setState("off"));
   };
 
   context.subscriptions.push(
@@ -81,7 +88,7 @@ function routeMessage(msg: WebviewToHostMessage, handle: PanelHandle): void {
       runDirection(msg.direction, readConfig());
       return;
     case "dictation":
-      // wired in a later commit (status bar + audio gate)
+      statusBar?.setState(msg.active ? "dictating" : "tracking");
       return;
     case "transcript":
       // wired in a later commit (insert at cursor)
@@ -91,6 +98,7 @@ function routeMessage(msg: WebviewToHostMessage, handle: PanelHandle): void {
     case "status":
       return;
     case "error":
+      statusBar?.setError(msg.message);
       vscode.window.showErrorMessage(`Head Input: ${msg.message}`);
       return;
   }
