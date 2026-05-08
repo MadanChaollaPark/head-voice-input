@@ -91,6 +91,20 @@ All settings live under `headInput.*` in `settings.json`.
 - The MediaPipe model is fetched from the Google CDN on first load; the extension is online for that initial download.
 - macOS only tested target; Windows / Linux should work but is not exercised.
 
+## Documentation
+
+Deeper guides live in [`docs/`](./docs):
+
+- [Architecture](./docs/architecture.md) — module layout, threading, CSP.
+- [Data flow](./docs/data-flow.md) — every host <-> webview message in order.
+- [Development](./docs/development.md) — prerequisites, watch mode, debugging.
+- [Settings](./docs/settings.md) — every `headInput.*` knob explained.
+- [Gestures](./docs/gestures.md) — calibration, tilt mapping, smile gate.
+- [Deepgram integration](./docs/deepgram.md) — endpoint, params, costs, latency.
+- [Permissions](./docs/permissions.md) — camera/mic prompts and recovery.
+- [Troubleshooting](./docs/troubleshooting.md) — common issues.
+- [Manual test checklist](./docs/testing.md) — what to verify before release.
+
 ## Project layout
 
 ```
