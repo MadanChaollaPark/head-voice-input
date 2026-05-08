@@ -1,0 +1,143 @@
+{
+  "name": "head-voice-input",
+  "displayName": "Head + Voice Input",
+  "description": "Move the editor cursor with head tilt and dictate with voice while smiling",
+  "version": "0.0.1",
+  "publisher": "madanchaollapark",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "headInput.openPanel",
+        "title": "Head Input: Open Panel",
+        "category": "Head Input"
+      },
+      {
+        "command": "headInput.calibrate",
+        "title": "Head Input: Recalibrate Neutral Pose",
+        "category": "Head Input"
+      },
+      {
+        "command": "headInput.toggle",
+        "title": "Head Input: Toggle Tracking",
+        "category": "Head Input"
+      },
+      {
+        "command": "headInput.setDeepgramKey",
+        "title": "Head Input: Set Deepgram API Key",
+        "category": "Head Input"
+      },
+      {
+        "command": "headInput.clearDeepgramKey",
+        "title": "Head Input: Clear Deepgram API Key",
+        "category": "Head Input"
+      }
+    ],
+    "configuration": {
+      "title": "Head + Voice Input",
+      "properties": {
+        "headInput.tiltSensitivity": {
+          "type": "number",
+          "default": 1.0,
+          "minimum": 0.1,
+          "maximum": 3.0,
+          "description": "Multiplier on detected head tilt; higher = more sensitive."
+        },
+        "headInput.deadZoneDegrees": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 30,
+          "description": "Degrees of head tilt ignored around neutral pose."
+        },
+        "headInput.repeatRateHz": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "How often a sustained tilt fires repeated cursor moves."
+        },
+        "headInput.verticalAction": {
+          "type": "string",
+          "enum": ["cursor", "scroll"],
+          "default": "cursor",
+          "description": "Whether vertical head tilt moves the text cursor or scrolls the editor."
+        },
+        "headInput.horizontalAction": {
+          "type": "string",
+          "enum": ["cursor", "word"],
+          "default": "cursor",
+          "description": "Whether horizontal head tilt moves character-by-character or word-by-word."
+        },
+        "headInput.smileOnThreshold": {
+          "type": "number",
+          "default": 0.5,
+          "minimum": 0.1,
+          "maximum": 0.95,
+          "description": "Smile blendshape value above which dictation begins."
+        },
+        "headInput.smileOffThreshold": {
+          "type": "number",
+          "default": 0.3,
+          "minimum": 0.05,
+          "maximum": 0.9,
+          "description": "Smile blendshape value below which dictation ends."
+        },
+        "headInput.smileOnHoldMs": {
+          "type": "number",
+          "default": 200,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Milliseconds the smile must be held before dictation begins."
+        },
+        "headInput.smileOffHoldMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 0,
+          "maximum": 3000,
+          "description": "Milliseconds the smile must drop before dictation ends."
+        },
+        "headInput.deepgramLanguage": {
+          "type": "string",
+          "default": "en-US",
+          "description": "Deepgram language code (e.g. en-US, en-GB, multi)."
+        },
+        "headInput.deepgramModel": {
+          "type": "string",
+          "default": "nova-3",
+          "description": "Deepgram model name."
+        },
+        "headInput.autoOpenOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open the input panel automatically when Cursor starts."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "vscode:prepublish": "node esbuild.mjs --production"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.14"
+  }
+}
