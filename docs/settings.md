@@ -92,21 +92,21 @@ How long the smile must stay above `smileOnThreshold` before dictation begins. L
 
 How long the smile must drop below `smileOffThreshold` before dictation ends. Higher protects against brief drops while talking; lower stops faster when you actually finish.
 
-## Deepgram
+## ElevenLabs
 
-### `headInput.deepgramLanguage`
-
-- Type: `string`
-- Default: `en-US`
-
-Any value Deepgram accepts (e.g. `en-US`, `en-GB`, `de`, `multi`). See <https://developers.deepgram.com/docs/models-languages-overview>.
-
-### `headInput.deepgramModel`
+### `headInput.elevenLabsLanguageCode`
 
 - Type: `string`
-- Default: `nova-3`
+- Default: `en`
 
-Deepgram model name. `nova-3` is the latest general model at time of writing. You can switch to `nova-2`, `enhanced`, etc. if you need a specific tier.
+Any language code ElevenLabs Scribe accepts (e.g. `en`, `de`, `es`). Leave it as `en` for English demos.
+
+### `headInput.elevenLabsSttModel`
+
+- Type: `string`
+- Default: `scribe_v2_realtime`
+
+ElevenLabs realtime speech-to-text model ID.
 
 ## Behavior
 
@@ -119,7 +119,7 @@ Open the input panel automatically when Cursor finishes activating. Useful if yo
 
 ## Where the API key lives
 
-The Deepgram API key is **not** a setting. It is stored in `SecretStorage` under the secret name `headInput.deepgramApiKey`. Manage it with:
+The ElevenLabs API key is **not** a setting. It is stored in `SecretStorage` under the secret name `headInput.elevenLabsApiKey`. Manage it with:
 
-- `Head Input: Set Deepgram API Key`
-- `Head Input: Clear Deepgram API Key`
+- `Head Input: Set ElevenLabs API Key`
+- `Head Input: Clear ElevenLabs API Key`
