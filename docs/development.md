@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Node.js 18 or later (project tested on 20 and 25).
-- A Deepgram API key for end-to-end dictation testing.
+- An ElevenLabs API key for end-to-end dictation testing.
 - A working webcam and microphone.
 
 ## First-time setup
@@ -78,7 +78,7 @@ Note that source maps are emitted in non-production builds, so breakpoints land 
 - **`detectForVideo` requires monotonic timestamps.** `landmarker.ts` clamps duplicates by adding 1 ms; if you change the loop, keep that invariant.
 - **Webview CSP is strict.** All scripts run under a per-load nonce. Don't add inline `<script>` blocks without using the same nonce that `panel.ts` injects.
 - **MediaPipe wasm files must be co-located.** If you change `esbuild.mjs` make sure the `node_modules/@mediapipe/tasks-vision/wasm` copy step still runs; without it the webview can't initialize the task runtime.
-- **`MediaRecorder` chunks include container headers.** Don't reorder them before sending to Deepgram; the first chunk has the webm header that subsequent chunks rely on.
+- **ElevenLabs expects PCM16.** Keep `mic.ts` emitting mono 16 kHz little-endian PCM chunks; sending browser-native webm/opus blobs will not match the current Scribe realtime configuration.
 - **VS Code's `vscode.workspace.getConfiguration` snapshots at the time you read it.** When configs change, the extension picks them up via `onDidChangeConfiguration` and re-pushes a `config` message to the webview.
 
 ## Producing a `.vsix`
