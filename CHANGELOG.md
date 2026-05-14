@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `dab` indicator chip in the panel toolbar that lights up while a dab is being held.
 - `headInput.dab*` configuration keys: enabled, hold time, cooldown.
 
+### Changed
+- Replaced Deepgram dictation with ElevenLabs Scribe realtime STT.
+- Dictation audio is now sent as 16 kHz mono PCM16 chunks instead of MediaRecorder webm/opus chunks.
+- Renamed API key commands and STT settings from Deepgram to ElevenLabs.
+
 ### Notes
 - Whistle detection is suppressed while dictation is active (smile gate on).
 - Dab detection runs at ~15 Hz (every other frame) on the GPU delegate to keep cost predictable.
@@ -30,12 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vertical action selectable between cursor movement and editor scrolling.
 - Horizontal action selectable between character and word movement.
 - Smile-blendshape detection with separate on/off thresholds and hold times.
-- MediaRecorder mic capture gated on dictation state (smile held).
-- Deepgram streaming WebSocket client; interim and final transcripts surfaced.
+- PCM mic capture gated on dictation state (smile held).
+- ElevenLabs Scribe streaming WebSocket client; partial and committed transcripts surfaced.
 - Final transcripts inserted at the last active editor's cursor with smart spacing.
 - Status bar item showing tracking, paused, and dictating states.
 - Default keybindings: open panel (Cmd/Ctrl+Shift+H), recalibrate (Cmd/Ctrl+Shift+R).
-- Deepgram API key stored via VS Code SecretStorage; commands to set and clear.
-- Configuration schema covering sensitivity, dead zone, repeat rate, smile thresholds, and Deepgram options.
+- ElevenLabs API key stored via VS Code SecretStorage; commands to set and clear.
+- Configuration schema covering sensitivity, dead zone, repeat rate, smile thresholds, and ElevenLabs options.
 - esbuild-based bundling for both extension host and webview targets.
 - README, MIT license, and project documentation.
