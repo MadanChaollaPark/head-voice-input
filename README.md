@@ -3,16 +3,16 @@
 A Cursor / VS Code extension that lets you control the editor with your head, voice, and whistle.
 
 - **Tilt your head** to move the text cursor (or scroll) in the active editor.
-- **Smile and hold** to start dictating; speech is transcribed by Deepgram and inserted at the cursor.
+- **Smile and hold** to start dictating; speech is transcribed by ElevenLabs Scribe and inserted at the cursor.
 - **Stop smiling** to end dictation.
 - **Whistle** at one of four pitch bands to nudge the cursor up / down / left / right.
 - **Dab** to insert a newline (Enter) at the cursor.
 
-Everything runs locally except the speech-to-text streaming, which uses Deepgram.
+Everything runs locally except the speech-to-text streaming, which uses ElevenLabs Scribe realtime STT.
 
 ## How it works
 
-A webview panel owns the camera and microphone. MediaPipe FaceLandmarker runs in the panel at ~30 fps and reports head pose plus mouth-smile blendshape values. The extension host receives messages from the panel and either runs cursor-movement commands or streams audio to Deepgram and inserts the resulting text.
+A webview panel owns the camera and microphone. MediaPipe FaceLandmarker runs in the panel at ~30 fps and reports head pose plus mouth-smile blendshape values. The extension host receives messages from the panel and either runs cursor-movement commands or streams 16 kHz PCM audio to ElevenLabs and inserts the resulting text.
 
 ## Install (development build)
 
@@ -32,13 +32,13 @@ Then in Cursor / VS Code:
 3. In the new window, run `Head Input: Open Panel` from the command palette.
 4. Grant camera and microphone permission when prompted.
 
-## Deepgram API key
+## ElevenLabs API key
 
-Voice dictation uses Deepgram streaming. You will need a key from <https://console.deepgram.com>.
+Voice dictation uses ElevenLabs realtime speech-to-text. You will need an API key from <https://elevenlabs.io>.
 
 Set it once with the command palette:
 
-- `Head Input: Set Deepgram API Key`
+- `Head Input: Set ElevenLabs API Key`
 
 The key is stored in Cursor's secret storage, not in `settings.json`.
 
@@ -76,8 +76,8 @@ All settings live under `headInput.*` in `settings.json`.
 | `smileOffThreshold`           | `0.3`   | Below this for `smileOffHoldMs` ends dictation.                  |
 | `smileOnHoldMs`               | `200`   | How long the smile must be held to trigger dictation.            |
 | `smileOffHoldMs`              | `500`   | How long the smile must drop to release dictation.               |
-| `deepgramLanguage`            | `en-US` | Any Deepgram language code (e.g. `en-GB`, `multi`).              |
-| `deepgramModel`               | `nova-3`| Deepgram model name.                                             |
+| `elevenLabsLanguageCode`      | `en`    | Any ElevenLabs Scribe language code (e.g. `en`, `de`, `es`).     |
+| `elevenLabsSttModel`          | `scribe_v2_realtime` | ElevenLabs realtime STT model ID.                    |
 | `autoOpenOnStartup`           | `false` | Open the panel when Cursor starts.                               |
 | `whistleEnabled`              | `true`  | Whistle to nudge the cursor.                                     |
 | `whistleMinHz` / `whistleMaxHz` | `500` / `4000` | Whistle frequency range; pitches outside are ignored.    |
@@ -95,7 +95,7 @@ All settings live under `headInput.*` in `settings.json`.
 - **Permission denied**: re-run `Head Input: Open Panel`; if the prompt was previously dismissed, reset it via the same Privacy menu.
 - **Cursor jumps too far / too little**: tune `tiltSensitivity`, `deadZoneDegrees`, and `repeatRateHz`.
 - **False-positive dictation while talking**: raise `smileOnThreshold` and `smileOnHoldMs`.
-- **Deepgram errors**: verify the key with `Head Input: Set Deepgram API Key` and check your network can reach `wss://api.deepgram.com`.
+- **ElevenLabs errors**: verify the key with `Head Input: Set ElevenLabs API Key` and check your network can reach `wss://api.elevenlabs.io`.
 
 ## Limitations
 
@@ -115,7 +115,7 @@ Deeper guides live in [`docs/`](./docs):
 - [Gestures](./docs/gestures.md) — calibration, tilt mapping, smile gate.
 - [Whistle to direction](./docs/whistle.md) — pitch detection, band layout, tuning.
 - [Dab to newline](./docs/dab.md) — body landmark geometry, hold time, cooldown.
-- [Deepgram integration](./docs/deepgram.md) — endpoint, params, costs, latency.
+- [ElevenLabs integration](./docs/elevenlabs.md) — endpoint, params, audio format, latency.
 - [Permissions](./docs/permissions.md) — camera/mic prompts and recovery.
 - [Troubleshooting](./docs/troubleshooting.md) — common issues.
 - [Manual test checklist](./docs/testing.md) — what to verify before release.
@@ -124,10 +124,10 @@ Deeper guides live in [`docs/`](./docs):
 
 ```
 src/
-  extension.ts      Activation, command routing, Deepgram, text insertion.
+  extension.ts      Activation, command routing, ElevenLabs, text insertion.
   panel.ts          Webview creation, CSP, asset URIs.
   statusBar.ts      Status bar item.
-  deepgram.ts       Streaming WebSocket client.
+  elevenlabsStt.ts  Streaming ElevenLabs Scribe WebSocket client.
   types.ts          Shared message types between host and webview.
   webview/
     main.ts         Webview entry; coordinates camera, tracker, mic.
@@ -137,7 +137,7 @@ src/
     smile.ts        Smile blendshape + on/off hysteresis gate.
     calibration.ts  1s neutral-pose averaging.
     nudge.ts        Pose-to-direction events (dead zone, repeat-on-hold).
-    mic.ts          MediaRecorder audio capture.
+    mic.ts          Web Audio PCM16 capture for ElevenLabs.
     audioAnalyser.ts AnalyserNode tap for pitch detection.
     pitch.ts        YIN pitch detector.
     whistle.ts      Pitch band -> direction controller.
