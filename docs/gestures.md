@@ -58,7 +58,7 @@ A separate, audio-driven path lets you nudge the cursor by whistling at a sustai
 A summary, in case you don't follow the link:
 - Low whistle → down. High whistle → up. The two middle bands → left and right.
 - Hold the whistle for `whistleHoldMs` before the first nudge fires; sustained whistles repeat at `whistleRepeatRateHz`.
-- Whistling while you're dictating (smile gate active) is intentionally a no-op — the audio path is reserved for Deepgram during dictation.
+- Whistling while you're dictating (smile gate active) is intentionally a no-op — the audio path is reserved for ElevenLabs during dictation.
 
 ## Dab -> newline
 
