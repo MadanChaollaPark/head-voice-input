@@ -46,14 +46,14 @@ You can confirm what the model thinks of your smile by enabling the pose debug o
 
 Walk the data flow:
 
-1. Webview devtools console — is `audio` being sent? Look for `MediaRecorder` `dataavailable` logs.
-2. Extension Development Host debug console — is `DeepgramClient.sendAudio` being called?
+1. Webview devtools console — is `audio` being sent? Check that `MicRecorder` is active while the smile gate is on.
+2. Extension Development Host debug console — is `ElevenLabsSttClient.sendAudio` being called?
 3. Network tab in webview devtools — webviews don't show extension-host fetches. Instead check the host's `console.error` for socket errors.
-4. If the socket connects but transcripts never arrive, see [deepgram.md#audio-format](./deepgram.md#audio-format) — your `MediaRecorder` may be selecting an unsupported codec.
+4. If the socket connects but transcripts never arrive, see [elevenlabs.md#audio-format](./elevenlabs.md#audio-format) — Scribe expects mono 16 kHz PCM16 chunks with the current configuration.
 
 ## "Failed to set up dictation" toast
 
-The host couldn't open the WebSocket. Most common cause is a missing or invalid API key. Run `Head Input: Clear Deepgram API Key` followed by `Head Input: Set Deepgram API Key` and paste a fresh key.
+The host couldn't open the WebSocket. Most common cause is a missing or invalid API key. Run `Head Input: Clear ElevenLabs API Key` followed by `Head Input: Set ElevenLabs API Key` and paste a fresh key.
 
 If the key is correct, check `console.error` in the Debug Console; the socket close code (`4001` = auth, `4008` = rate, `1011` = server) is logged.
 
@@ -70,7 +70,7 @@ You ran `npm install` outside the project directory or `node_modules` is corrupt
 You added an inline `<script>` or pulled an asset from a host that isn't in `panel.ts`'s CSP whitelist. The current allow-list is:
 
 - `script-src` — same origin + nonce + `'wasm-unsafe-eval'`
-- `connect-src` — `https://storage.googleapis.com` (model file) and `https://*.deepgram.com` (audio websocket)
+- `connect-src` — `https://storage.googleapis.com` (model file). ElevenLabs STT runs in the extension host, not the webview.
 
 If you need another origin, add it to `connect-src` (or `img-src`, etc.) and rebuild.
 
