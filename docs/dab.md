@@ -2,7 +2,7 @@
 
 A held dab pose inserts a newline (Enter) into the active editor. It's the
 "commit my dictated sentence and move on" gesture — useful after the smile gate
-has dropped and Deepgram's final transcript has landed at the caret.
+has dropped and ElevenLabs' committed transcript has landed at the caret.
 
 ## What counts as a dab
 
