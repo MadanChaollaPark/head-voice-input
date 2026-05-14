@@ -35,10 +35,10 @@ See [`docs/architecture.md`](docs/architecture.md) for an overview of how the ex
 
 | Path                  | Role                                                  |
 | --------------------- | ----------------------------------------------------- |
-| `src/extension.ts`    | Activation, command routing, Deepgram, text insertion |
+| `src/extension.ts`    | Activation, command routing, ElevenLabs, text insertion |
 | `src/panel.ts`        | Webview creation, CSP, asset URIs                     |
 | `src/statusBar.ts`    | Status bar item                                       |
-| `src/deepgram.ts`     | Streaming WebSocket client                            |
+| `src/elevenlabsStt.ts`| Streaming ElevenLabs Scribe WebSocket client          |
 | `src/types.ts`        | Shared message types between host and webview         |
 | `src/webview/*`       | All code that runs inside the webview (camera, tracker, mic) |
 | `esbuild.mjs`         | Bundler script for both targets                       |
