@@ -8,7 +8,7 @@ The webview needs both camera and microphone access. The first time you open the
 
 If you accept, the `MediaStream` returned is split:
 - The video track feeds the `<video>` element that `FaceLandmarker.detectForVideo` reads from.
-- The audio track is held in reserve and only attached to a `MediaRecorder` when dictation actually starts.
+- The audio track is held in reserve and only attached to the PCM recorder when dictation actually starts.
 
 ## If you accidentally clicked "Block"
 
@@ -47,7 +47,7 @@ VS Code webviews currently inherit the parent process's media permissions on fir
 ## Privacy posture
 
 - The video stream never leaves your machine. Frames are processed in-process by MediaPipe wasm.
-- The audio stream goes only to Deepgram while you are smiling. The host closes the WebSocket when the smile gate flips off.
+- The audio stream goes only to ElevenLabs while you are smiling. The host commits and closes the WebSocket when the smile gate flips off.
 - If you want to be extra cautious, watch your OS's camera/microphone indicator. The green dot or LED should turn off the moment you close the panel.
 
 ## Headless / remote workspaces
