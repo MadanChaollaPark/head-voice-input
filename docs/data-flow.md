@@ -61,24 +61,24 @@ The host translates each nudge to a VS Code command:
 Carries `active: true | false`. Fires only on state transitions (the SmileGate has internal hysteresis so it is debounced).
 
 On `active: true` the host:
-1. Reads the Deepgram API key from `SecretStorage`. If absent, prompts the user; aborts if still missing.
-2. Constructs `DeepgramClient` with the language and model from settings.
+1. Reads the ElevenLabs API key from `SecretStorage`. If absent, prompts the user; aborts if still missing.
+2. Constructs `ElevenLabsSttClient` with the language code and realtime model from settings.
 3. Calls `dictation.start()` which opens the WSS connection. Audio buffered before `OPEN` is replayed once the socket opens.
 
-On `active: false` the host calls `dictation.stop()` which sends Deepgram's `CloseStream` control message and closes the socket.
+On `active: false` the host calls `dictation.stop()` which sends an ElevenLabs `input_audio_chunk` with `commit: true`, waits briefly for the committed transcript, then closes the socket.
 
 ### `audio`
 
-Sent for every `MediaRecorder` `dataavailable` event while dictation is active. Carries:
-- `data: ArrayBuffer` - the raw chunk from `MediaRecorder` (webm/opus on most browsers).
-- `mimeType: string` - whatever `MediaRecorder` selected.
-- `first: boolean` - true for the first chunk of a session; this chunk includes the webm container header.
+Sent for every Web Audio PCM chunk while dictation is active. Carries:
+- `data: ArrayBuffer` - mono 16 kHz little-endian PCM16 audio.
+- `mimeType: "audio/pcm;rate=16000"` - documents the fixed encoding.
+- `first: boolean` - true for the first chunk of a session.
 
-The host forwards `data` to the Deepgram WebSocket via `dictation.sendAudio`. If the socket is still connecting, chunks are buffered and replayed when `OPEN` fires.
+The host base64-encodes `data` and forwards it to the ElevenLabs WebSocket via `dictation.sendAudio`. If the socket is still connecting, chunks are buffered and replayed when `OPEN` fires.
 
 ### `dictation-end`
 
-Defensive signal sent when `MediaRecorder.stop()` finishes; the host treats it the same as a `dictation: false`.
+Defensive signal sent when microphone capture finishes; the host treats it the same as a `dictation: false`.
 
 ### `error`
 
@@ -96,11 +96,11 @@ Carries the current `HeadInputConfig`. The webview applies the values to:
 - `SmileGate.setOptions` (thresholds + hold times)
 - `NudgeController.setOptions` (dead zone + sensitivity + repeat rate)
 
-`deepgramKey` in this message is always `null`; the API key never travels into the webview.
+`elevenLabsKey` in this message is always `null`; the API key never travels into the webview.
 
 ### `transcript-forward`
 
-Sent on every Deepgram transcript (interim and final). The webview shows it in the panel's transcript area; the trailing ellipsis marks interim transcripts.
+Sent on every ElevenLabs transcript (partial and committed). The webview shows it in the panel's transcript area; the trailing ellipsis marks partial transcripts.
 
 ### `calibrate`
 
@@ -113,7 +113,7 @@ Sent when the user runs `Head Input: Toggle Tracking`. The webview pauses or res
 ## End-to-end sequence: a single dictation
 
 ```
-webview                                      host                            deepgram
+webview                                      host                            elevenlabs
    |                                           |                                |
    |-- ready -------------------------------->|                                |
    |                                           |-- config ------------------>|
@@ -123,19 +123,17 @@ webview                                      host                            dee
    |  (user smiles, gate flips)                |                                |
    |-- dictation { active: true } ----------->|                                |
    |                                           |-- WS connect ---------------->|
-   |  MediaRecorder.start()                    |                                |
-   |-- audio (first chunk, webm header) ----->|-- frame ------------------>|
-   |-- audio (chunk) ------------------------>|-- frame ------------------>|
-   |                                           |                          <--- transcript (interim)
+   |  MicRecorder.start()                      |                                |
+   |-- audio (pcm16 chunk) ------------------>|-- input_audio_chunk ------>|
+   |-- audio (pcm16 chunk) ------------------>|-- input_audio_chunk ------>|
+   |                                           |                          <--- partial_transcript
    |<-- transcript-forward ------------------|                                |
-   |-- audio (chunk) ------------------------>|-- frame ------------------>|
-   |                                           |                          <--- transcript (final)
-   |<-- transcript-forward ------------------|                                |
-   |                                           |   editor.edit(insert text)   |
-   |                                           |                                |
    |  (user stops smiling)                     |                                |
    |-- dictation { active: false } ---------->|                                |
-   |  MediaRecorder.stop()                     |                                |
-   |-- dictation-end ----------------------->|-- CloseStream ------------>|
+   |  MicRecorder.stop()                       |                                |
+   |-- dictation-end ----------------------->|-- input_audio_chunk commit>|
+   |                                           |                          <--- committed_transcript
+   |<-- transcript-forward ------------------|                                |
+   |                                           |   editor.edit(insert text)   |
    |                                           |-- WS close ----------------->|
 ```
