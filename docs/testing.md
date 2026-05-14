@@ -40,9 +40,9 @@ There is no automated test suite yet. This checklist is what to walk through bef
 
 ## Smile -> dictation
 
-- [ ] With Deepgram API key set: smile, the status flips to `Dictating`.
-- [ ] Speak a short sentence. Interim transcripts appear in the panel.
-- [ ] Stop smiling. The final transcript is inserted at the caret with a leading space if the preceding char isn't whitespace.
+- [ ] With ElevenLabs API key set: smile, the status flips to `Dictating`.
+- [ ] Speak a short sentence. Partial transcripts appear in the panel.
+- [ ] Stop smiling. The committed transcript is inserted at the caret with a leading space if the preceding char isn't whitespace.
 - [ ] Smile again, dictate again. Multiple sessions in a row work.
 
 ## Smile gate edge cases
@@ -59,9 +59,9 @@ There is no automated test suite yet. This checklist is what to walk through bef
 
 ## API key management
 
-- [ ] `Head Input: Set Deepgram API Key`: prompts for input, masks characters.
+- [ ] `Head Input: Set ElevenLabs API Key`: prompts for input, masks characters.
 - [ ] After setting, smiling actually opens the WebSocket (check Debug Console).
-- [ ] `Head Input: Clear Deepgram API Key`: subsequent dictation prompts for the key again.
+- [ ] `Head Input: Clear ElevenLabs API Key`: subsequent dictation prompts for the key again.
 
 ## Settings hot-reload
 
@@ -81,7 +81,7 @@ There is no automated test suite yet. This checklist is what to walk through bef
 
 - [ ] CPU at idle (panel open, no tilt, no smile): under 15% on Apple Silicon, under 25% on a 2020-era Intel laptop.
 - [ ] Latency from "I tilt my head" to "caret moved": under 150 ms feels right; under 300 ms is acceptable.
-- [ ] Latency from "I stop smiling" to "transcript inserted": dominated by Deepgram (~300-500 ms typical).
+- [ ] Latency from "I stop smiling" to "transcript inserted": dominated by ElevenLabs commit latency.
 
 ## Cleanup
 
