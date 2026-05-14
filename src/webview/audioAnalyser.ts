@@ -1,8 +1,8 @@
 /**
  * Tap a Web Audio `AnalyserNode` off the camera's `MediaStream`. The
  * analyser is intentionally not connected to `ctx.destination` — that would
- * route the microphone to the speakers. `MediaRecorder` can read the same
- * stream simultaneously (audio is fan-out at the source).
+ * route the microphone to the speakers. Dictation PCM capture can read the
+ * same stream simultaneously (audio is fan-out at the source).
  */
 
 export interface AudioAnalyserHandle {

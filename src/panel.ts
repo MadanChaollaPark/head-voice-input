@@ -80,7 +80,7 @@ export function createOrShowPanel(context: vscode.ExtensionContext): PanelHandle
 /**
  * Build the HTML payload for the webview. Injects a per-load nonce, asset URIs
  * resolved through `webview.asWebviewUri`, and a CSP that allows MediaPipe's
- * model fetch (`storage.googleapis.com`) plus Deepgram's WebSocket.
+ * model fetch (`storage.googleapis.com`). ElevenLabs STT runs in the host.
  */
 function renderHtml(webview: vscode.Webview, context: vscode.ExtensionContext): string {
   const distUri = vscode.Uri.joinPath(context.extensionUri, "dist");
@@ -98,7 +98,7 @@ function renderHtml(webview: vscode.Webview, context: vscode.ExtensionContext): 
     `media-src ${cspSource} blob: mediastream:`,
     `font-src ${cspSource}`,
     `worker-src ${cspSource} blob:`,
-    `connect-src ${cspSource} https://storage.googleapis.com https://*.deepgram.com wss://api.deepgram.com blob: data:`,
+    `connect-src ${cspSource} https://storage.googleapis.com blob: data:`,
     `frame-src 'none'`,
   ].join("; ");
 

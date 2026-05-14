@@ -1,95 +1,150 @@
+const TARGET_SAMPLE_RATE = 16000;
+const CHUNK_MS = 250;
+
 /**
- * One audio fragment from `MediaRecorder`. The `first: true` chunk includes
- * the container header and must precede any subsequent chunk for Deepgram to
- * parse the stream.
+ * One audio fragment from the microphone. `data` is mono 16-bit PCM,
+ * little-endian, resampled to 16 kHz for ElevenLabs Scribe realtime STT.
  */
 export interface MicChunk {
   data: ArrayBuffer;
-  mimeType: string;
+  mimeType: "audio/pcm;rate=16000";
   first: boolean;
 }
 
 /**
- * Thin wrapper around `MediaRecorder` that picks a Deepgram-friendly mime
- * type and converts each blob to an `ArrayBuffer` for `postMessage` transfer.
- * Audio tracks are isolated from the source `MediaStream` so the video track
- * isn't touched.
+ * Web Audio based recorder that converts the camera stream's audio track into
+ * fixed-size PCM16 chunks. A ScriptProcessor keeps the extension self-contained
+ * inside the VS Code webview; the chunking and resampling are deterministic.
  */
 export class MicRecorder {
-  private recorder: MediaRecorder | null = null;
+  private audioContext: AudioContext | null = null;
   private audioStream: MediaStream | null = null;
+  private source: MediaStreamAudioSourceNode | null = null;
+  private processor: ScriptProcessorNode | null = null;
+  private pending: Float32Array<ArrayBufferLike> = new Float32Array(0);
   private firstChunk = true;
 
-  constructor(private source: MediaStream, private onChunk: (chunk: MicChunk) => void) {}
+  constructor(private sourceStream: MediaStream, private onChunk: (chunk: MicChunk) => void) {}
 
   isActive(): boolean {
-    return this.recorder !== null;
+    return this.audioContext !== null;
   }
 
   start(): void {
-    if (this.recorder) {
+    if (this.audioContext) {
       return;
     }
-    const audioTracks = this.source.getAudioTracks();
+    const audioTracks = this.sourceStream.getAudioTracks();
     if (audioTracks.length === 0) {
       throw new Error("no audio tracks in source MediaStream");
     }
     this.audioStream = new MediaStream(audioTracks);
-    const mimeType = pickMimeType();
+    const AudioContextCtor = window.AudioContext || (window as WebkitAudioWindow).webkitAudioContext;
+    if (!AudioContextCtor) {
+      throw new Error("Web Audio API is not available in this webview");
+    }
+    const context = new AudioContextCtor();
+    if (context.state === "suspended") {
+      void context.resume().catch(() => undefined);
+    }
+    const source = context.createMediaStreamSource(this.audioStream);
+    const processor = context.createScriptProcessor(4096, 1, 1);
+    const chunkSamples = Math.round((TARGET_SAMPLE_RATE * CHUNK_MS) / 1000);
+
+    this.pending = new Float32Array(0);
     this.firstChunk = true;
-    const recorder = new MediaRecorder(this.audioStream, mimeType ? { mimeType } : undefined);
-    recorder.ondataavailable = async (event) => {
-      if (!event.data || event.data.size === 0) {
-        return;
+    processor.onaudioprocess = (event) => {
+      const input = event.inputBuffer.getChannelData(0);
+      const resampled = resampleLinear(input, context.sampleRate, TARGET_SAMPLE_RATE);
+      this.pending = concatFloat32(this.pending, resampled);
+      while (this.pending.length >= chunkSamples) {
+        const chunk = this.pending.slice(0, chunkSamples);
+        this.pending = this.pending.slice(chunkSamples);
+        this.emit(chunk);
       }
-      const buffer = await event.data.arrayBuffer();
-      const wasFirst = this.firstChunk;
-      this.firstChunk = false;
-      this.onChunk({
-        data: buffer,
-        mimeType: recorder.mimeType || "audio/webm",
-        first: wasFirst,
-      });
     };
-    recorder.start(250);
-    this.recorder = recorder;
+
+    source.connect(processor);
+    processor.connect(context.destination);
+    this.audioContext = context;
+    this.source = source;
+    this.processor = processor;
   }
 
-  stop(): void {
-    const r = this.recorder;
-    if (!r) {
+  async stop(): Promise<void> {
+    const context = this.audioContext;
+    if (!context) {
       return;
     }
-    r.ondataavailable = null;
+    const source = this.source;
+    const processor = this.processor;
+    this.audioContext = null;
+    this.audioStream = null;
+    this.source = null;
+    this.processor = null;
     try {
-      if (r.state !== "inactive") {
-        r.stop();
-      }
+      processor?.disconnect();
+      source?.disconnect();
     } catch {
       // ignore
     }
-    this.recorder = null;
-    this.audioStream = null;
+    if (this.pending.length > 0) {
+      this.emit(this.pending);
+      this.pending = new Float32Array(0);
+    }
+    await context.close().catch(() => undefined);
+  }
+
+  private emit(samples: Float32Array): void {
+    const pcm = new Int16Array(samples.length);
+    for (let i = 0; i < samples.length; i++) {
+      const clamped = Math.max(-1, Math.min(1, samples[i]));
+      pcm[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
+    }
+    const wasFirst = this.firstChunk;
+    this.firstChunk = false;
+    this.onChunk({
+      data: pcm.buffer,
+      mimeType: "audio/pcm;rate=16000",
+      first: wasFirst,
+    });
   }
 }
 
-/**
- * Choose the most-preferred mime type the current `MediaRecorder` supports,
- * walking from `audio/webm;codecs=opus` down to `audio/mp4`. Returns `null`
- * if none match — the recorder will then use its implementation default.
- */
-function pickMimeType(): string | null {
-  const candidates = [
-    "audio/webm;codecs=opus",
-    "audio/webm",
-    "audio/ogg;codecs=opus",
-    "audio/ogg",
-    "audio/mp4",
-  ];
-  for (const t of candidates) {
-    if (typeof MediaRecorder.isTypeSupported === "function" && MediaRecorder.isTypeSupported(t)) {
-      return t;
-    }
+interface WebkitAudioWindow {
+  webkitAudioContext?: typeof AudioContext;
+}
+
+function resampleLinear(
+  input: Float32Array<ArrayBufferLike>,
+  inputRate: number,
+  outputRate: number,
+): Float32Array<ArrayBufferLike> {
+  if (inputRate === outputRate) {
+    return input.slice();
   }
-  return null;
+  const outputLength = Math.max(1, Math.round((input.length * outputRate) / inputRate));
+  const output = new Float32Array(outputLength);
+  const ratio = inputRate / outputRate;
+  for (let i = 0; i < outputLength; i++) {
+    const pos = i * ratio;
+    const left = Math.floor(pos);
+    const right = Math.min(left + 1, input.length - 1);
+    const weight = pos - left;
+    output[i] = input[left] * (1 - weight) + input[right] * weight;
+  }
+  return output;
+}
+
+function concatFloat32(
+  a: Float32Array<ArrayBufferLike>,
+  b: Float32Array<ArrayBufferLike>,
+): Float32Array<ArrayBufferLike> {
+  if (a.length === 0) {
+    return b;
+  }
+  const out = new Float32Array(a.length + b.length);
+  out.set(a, 0);
+  out.set(b, a.length);
+  return out;
 }

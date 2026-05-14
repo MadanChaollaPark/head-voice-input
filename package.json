@@ -1,7 +1,7 @@
 {
   "name": "head-voice-input",
   "displayName": "Head + Voice Input",
-  "description": "Move the editor cursor with head tilt and dictate with voice while smiling",
+  "description": "Move the editor cursor with head tilt and dictate with ElevenLabs voice input while smiling",
   "version": "0.0.1",
   "publisher": "madanchaollapark",
   "private": true,
@@ -42,13 +42,13 @@
         "category": "Head Input"
       },
       {
-        "command": "headInput.setDeepgramKey",
-        "title": "Head Input: Set Deepgram API Key",
+        "command": "headInput.setElevenLabsKey",
+        "title": "Head Input: Set ElevenLabs API Key",
         "category": "Head Input"
       },
       {
-        "command": "headInput.clearDeepgramKey",
-        "title": "Head Input: Clear Deepgram API Key",
+        "command": "headInput.clearElevenLabsKey",
+        "title": "Head Input: Clear ElevenLabs API Key",
         "category": "Head Input"
       }
     ],
@@ -135,15 +135,15 @@
           "maximum": 3000,
           "description": "Milliseconds the smile must drop before dictation ends."
         },
-        "headInput.deepgramLanguage": {
+        "headInput.elevenLabsLanguageCode": {
           "type": "string",
-          "default": "en-US",
-          "description": "Deepgram language code (e.g. en-US, en-GB, multi)."
+          "default": "en",
+          "description": "ElevenLabs Scribe language code (e.g. en, de, es)."
         },
-        "headInput.deepgramModel": {
+        "headInput.elevenLabsSttModel": {
           "type": "string",
-          "default": "nova-3",
-          "description": "Deepgram model name."
+          "default": "scribe_v2_realtime",
+          "description": "ElevenLabs realtime speech-to-text model ID."
         },
         "headInput.autoOpenOnStartup": {
           "type": "boolean",

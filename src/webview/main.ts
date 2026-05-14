@@ -45,8 +45,8 @@ const defaultConfig: HeadInputConfig = {
   smileOffThreshold: 0.3,
   smileOnHoldMs: 200,
   smileOffHoldMs: 500,
-  deepgramLanguage: "en-US",
-  deepgramModel: "nova-3",
+  elevenLabsLanguageCode: "en",
+  elevenLabsSttModel: "scribe_v2_realtime",
   whistleEnabled: true,
   whistleMinHz: 500,
   whistleMaxHz: 4000,
@@ -119,9 +119,7 @@ function updateBars(pose: HeadPose, smile: number, smileActive: boolean): void {
   smileBar?.classList.toggle("active", smileActive);
   setText("smile-value", `${Math.round(smile * 100)}%`);
 
-  const pill = document.getElementById("dictation-pill");
-  pill?.classList.toggle("on", smileActive);
-  setText("dictation-label", smileActive ? "dictating" : "idle");
+  setDictationIndicator(smileActive);
 }
 
 function setBar(prefix: string, value: number, range: number): void {
@@ -144,6 +142,87 @@ function setText(id: string, text: string): void {
 let camera: CameraHandle | undefined;
 let tracker: TrackerHandle | undefined;
 let mic: MicRecorder | undefined;
+let dictationStopping = false;
+let dictationStopShouldNotifyHost = false;
+let suppressDictationUntilSmileDrops = false;
+
+function setDictationIndicator(active: boolean): void {
+  const pill = document.getElementById("dictation-pill");
+  pill?.classList.toggle("on", active);
+  setText("dictation-label", active ? "dictating" : "idle");
+}
+
+function localDictationActive(): boolean {
+  return smileGate.isActive() || (mic?.isActive() ?? false) || dictationStopping;
+}
+
+function startLocalDictation(): void {
+  if (dictationStopping || suppressDictationUntilSmileDrops) {
+    return;
+  }
+  setDictationIndicator(true);
+  send({ type: "dictation", active: true });
+  try {
+    mic?.start();
+  } catch (err) {
+    send({ type: "error", message: `Mic error: ${String(err)}` });
+    void stopLocalDictation({ notifyHost: true, suppressUntilSmileDrops: true });
+  }
+}
+
+async function stopLocalDictation(opts: {
+  notifyHost: boolean;
+  suppressUntilSmileDrops?: boolean;
+}): Promise<void> {
+  const hadLocalActivity = localDictationActive();
+  if (opts.notifyHost) {
+    dictationStopShouldNotifyHost = true;
+  }
+  if (opts.suppressUntilSmileDrops) {
+    suppressDictationUntilSmileDrops = true;
+  }
+  smileGate.reset();
+  setDictationIndicator(false);
+  if (!hadLocalActivity) {
+    dictationStopShouldNotifyHost = false;
+    return;
+  }
+  if (dictationStopping) {
+    return;
+  }
+  dictationStopping = true;
+  try {
+    await mic?.stop();
+  } catch (err) {
+    send({ type: "error", message: `Mic error: ${String(err)}` });
+  } finally {
+    dictationStopping = false;
+    smileGate.reset();
+    setDictationIndicator(false);
+    const notifyHost = dictationStopShouldNotifyHost;
+    dictationStopShouldNotifyHost = false;
+    if (notifyHost && hadLocalActivity) {
+      send({ type: "dictation", active: false });
+      send({ type: "dictation-end" });
+    }
+  }
+}
+
+function setPaused(paused: boolean): void {
+  tracker?.setPaused(paused);
+  const toggleBtn = document.getElementById("toggle");
+  if (toggleBtn) {
+    toggleBtn.textContent = paused ? "Resume" : "Pause";
+  }
+  send({
+    type: "status",
+    message: paused ? "paused" : "tracking",
+    state: paused ? "paused" : "tracking",
+  });
+  if (paused) {
+    void stopLocalDictation({ notifyHost: true, suppressUntilSmileDrops: true });
+  }
+}
 
 interface PitchSnapshot {
   hz: number | null;
@@ -239,24 +318,24 @@ async function init(): Promise<void> {
       onResult: (result, ts) => {
         const raw = poseFromResult(result);
         if (!raw) {
+          void stopLocalDictation({ notifyHost: true, suppressUntilSmileDrops: true });
           return;
         }
         const smoothed = smoother.smooth(raw, ts);
         calibrator.offer(smoothed, ts);
         const relative = calibrator.apply(smoothed);
         const smile = smileFromResult(result);
-        const gate = smileGate.update(smile, ts);
+        if (suppressDictationUntilSmileDrops && smile <= config.smileOffThreshold) {
+          suppressDictationUntilSmileDrops = false;
+        }
+        const gate = suppressDictationUntilSmileDrops
+          ? { changed: false, active: false }
+          : smileGate.update(smile, ts);
         if (gate.changed) {
-          send({ type: "dictation", active: gate.active });
           if (gate.active) {
-            try {
-              mic?.start();
-            } catch (err) {
-              send({ type: "error", message: `Mic error: ${String(err)}` });
-            }
+            startLocalDictation();
           } else {
-            mic?.stop();
-            send({ type: "dictation-end" });
+            void stopLocalDictation({ notifyHost: true, suppressUntilSmileDrops: true });
           }
         }
         if (calibrator.hasNeutral()) {
@@ -265,13 +344,14 @@ async function init(): Promise<void> {
           }
         }
 
-        const pitchInfo = sampleWhistle(ts, gate.active);
+        const dictationActive = localDictationActive();
+        const pitchInfo = sampleWhistle(ts, dictationActive);
         if (calibrator.hasNeutral() && pitchInfo) {
           for (const direction of pitchInfo.directions) {
             send({ type: "nudge", direction });
           }
         }
-        updateBars(relative, smile, gate.active);
+        updateBars(relative, smile, dictationActive);
         updateWhistleBar(pitchInfo);
         send({
           type: "pose",
@@ -353,8 +433,7 @@ function attachToolbar(): void {
       return;
     }
     const next = !tracker.paused();
-    tracker.setPaused(next);
-    toggleBtn.textContent = next ? "Resume" : "Pause";
+    setPaused(next);
   });
 }
 
@@ -394,17 +473,23 @@ window.addEventListener("message", (event: MessageEvent<HostToWebviewMessage>) =
       break;
     case "toggle":
       if (tracker) {
-        tracker.setPaused(!tracker.paused());
+        setPaused(!tracker.paused());
       }
       break;
     case "transcript-forward":
       setText("transcript", msg.text + (msg.isFinal ? "" : "…"));
       break;
+    case "dictation-stop":
+      if (msg.reason) {
+        setBanner(msg.reason, "info");
+      }
+      void stopLocalDictation({ notifyHost: false, suppressUntilSmileDrops: true });
+      break;
   }
 });
 
 window.addEventListener("beforeunload", () => {
-  mic?.stop();
+  void stopLocalDictation({ notifyHost: true });
   tracker?.stop();
   bodyTracker?.stop();
   audioAnalyser?.stop();

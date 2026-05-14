@@ -35,10 +35,11 @@ export interface PoseDebugMessage {
   smile: number;
 }
 
-/** Webview -> host: subtle status updates that don't deserve a toast. Reserved. */
+/** Webview -> host: subtle status updates that don't deserve a toast. */
 export interface StatusMessage {
   type: "status";
   message: string;
+  state?: "tracking" | "paused";
 }
 
 /** Webview -> host: emitted once after the camera, tracker, and mic finish initializing. */
@@ -52,15 +53,15 @@ export interface ErrorMessage {
   message: string;
 }
 
-/** Webview -> host: a `MediaRecorder` chunk during active dictation. The host forwards `data` to Deepgram. */
+/** Webview -> host: one mono PCM16 chunk during active dictation. The host forwards `data` to ElevenLabs. */
 export interface AudioChunkMessage {
   type: "audio";
   data: ArrayBuffer;
-  mimeType: string;
+  mimeType: "audio/pcm;rate=16000";
   first: boolean;
 }
 
-/** Webview -> host: defensive signal sent when `MediaRecorder.stop()` finishes; treated like `dictation: false`. */
+/** Webview -> host: defensive signal sent when microphone capture finishes; treated like `dictation: false`. */
 export interface DictationEndMessage {
   type: "dictation-end";
 }
@@ -83,11 +84,11 @@ export type WebviewToHostMessage =
   | DictationEndMessage
   | DabMessage;
 
-/** Host -> webview: pushes the current `HeadInputConfig`. `deepgramKey` is always null (the key never leaves the host). */
+/** Host -> webview: pushes the current `HeadInputConfig`. `elevenLabsKey` is always null (the key never leaves the host). */
 export interface ConfigMessage {
   type: "config";
   config: HeadInputConfig;
-  deepgramKey: string | null;
+  elevenLabsKey: string | null;
 }
 
 /** Host -> webview: triggers a fresh 1-second neutral-pose calibration. */
@@ -100,11 +101,17 @@ export interface ToggleRequestMessage {
   type: "toggle";
 }
 
-/** Host -> webview: a Deepgram transcript (interim or final) for display in the panel. */
+/** Host -> webview: an ElevenLabs transcript (partial or committed) for display in the panel. */
 export interface TranscriptForwardMessage {
   type: "transcript-forward";
   text: string;
   isFinal: boolean;
+}
+
+/** Host -> webview: force the local dictation UI and recorder off. */
+export interface DictationStopMessage {
+  type: "dictation-stop";
+  reason?: string;
 }
 
 /** Discriminated union of all messages flowing from host to webview. */
@@ -112,7 +119,8 @@ export type HostToWebviewMessage =
   | ConfigMessage
   | CalibrateRequestMessage
   | ToggleRequestMessage
-  | TranscriptForwardMessage;
+  | TranscriptForwardMessage
+  | DictationStopMessage;
 
 /**
  * User-tunable runtime configuration. Mirrors the `headInput.*` keys in
@@ -139,10 +147,10 @@ export interface HeadInputConfig {
   smileOnHoldMs: number;
   /** Hold duration (ms) below `smileOffThreshold` before dictation ends. */
   smileOffHoldMs: number;
-  /** BCP-47-ish language tag passed to Deepgram. */
-  deepgramLanguage: string;
-  /** Deepgram model name (e.g. `nova-3`). */
-  deepgramModel: string;
+  /** ISO 639 language code passed to ElevenLabs Scribe. */
+  elevenLabsLanguageCode: string;
+  /** ElevenLabs realtime STT model ID (e.g. `scribe_v2_realtime`). */
+  elevenLabsSttModel: string;
   /** Whether whistle-to-direction is active. */
   whistleEnabled: boolean;
   /** Lower bound of the whistle frequency range (Hz). Pitches below are ignored. */
