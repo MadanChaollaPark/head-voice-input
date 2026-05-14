@@ -73,4 +73,4 @@ Two ways:
 
 - Pitch detection: YIN with parabolic interpolation, in `src/webview/pitch.ts`. Window size is 2048 samples (~42 ms at 48 kHz). Cost per frame is negligible because τ is constrained to the whistle range, not the full half-window.
 - Audio source: `AnalyserNode` connected to a `MediaStreamSource` from the camera stream. **Not** connected to `ctx.destination` — that would route your microphone to your speakers.
-- Concurrency: the analyser and `MediaRecorder` both read from the same `MediaStream`. Web Audio fans audio out at the source level, so they don't conflict.
+- Concurrency: the analyser and dictation PCM recorder both read from the same `MediaStream`. Web Audio fans audio out at the source level, so they don't conflict.
